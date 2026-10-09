@@ -1,0 +1,7 @@
+.superpowers/
+.build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+.DS_Store
+Packages/KopilkaCore/Tests/KopilkaCoreTests/Fixtures/*.pdf
