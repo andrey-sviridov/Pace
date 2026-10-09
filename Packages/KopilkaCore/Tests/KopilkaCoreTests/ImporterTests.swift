@@ -12,7 +12,8 @@ import Testing
         operationAmount: Decimal,
         income: Decimal = 0,
         expense: Decimal = 0,
-        fee: Decimal = 0
+        fee: Decimal = 0,
+        card: String = "552204******2936"
     ) -> StatementRow {
         let day = CalendarDay(dotted: dotted)!
         return StatementRow(
@@ -24,7 +25,7 @@ import Testing
             incomeAmount: income,
             expenseAmount: expense,
             feeAmount: fee,
-            cardOrAccount: "*2936"
+            cardOrAccount: card
         )
     }
 
@@ -147,18 +148,82 @@ import Testing
         #expect(try context.fetch(FetchDescriptor<Account>()).isEmpty)
     }
 
-    @Test func initialHistoryCreatesCardAccount() throws {
+    @Test func initialHistoryCreatesCardAccountNamedByMostFrequentCard() throws {
         let context = try makeContext()
+        let statement = makeStatement(rows: [
+            makeRow("10.07.2026", "Операция оплаты у коммерсанта MAGNUM", operationAmount: -100, expense: -100),
+            makeRow("11.07.2026", "Операция оплаты у коммерсанта MAGNUM", operationAmount: -200, expense: -200),
+            makeRow("12.07.2026", "Операция оплаты у коммерсанта MAGNUM", operationAmount: -300, expense: -300, card: "440563******7777"),
+            makeRow("13.07.2026", "Ежемесячная комиссия RegularCharge", operationAmount: 0, fee: -150, card: "KZ126010002008249310"),
+        ])
 
-        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+        _ = try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
 
         let accounts = try context.fetch(FetchDescriptor<Account>())
         #expect(accounts.count == 1)
         #expect(accounts.first?.kind == .card)
-        #expect(accounts.first?.title == "Карта *9310")
+        #expect(accounts.first?.title == "Карта *2936")
         #expect(accounts.first?.anchorDay == nil)
         let entries = try context.fetch(FetchDescriptor<JournalEntry>())
         #expect(entries.allSatisfy { entry in entry.account?.number == "KZ126010002008249310" })
+    }
+
+    @Test func cardTitleFallsBackToAccountNumberWithoutMaskedCard() throws {
+        let context = try makeContext()
+        let statement = makeStatement(rows: [
+            makeRow("10.07.2026", "Операция оплаты у коммерсанта MAGNUM", operationAmount: -100, expense: -100, card: "KZ126010002008249310"),
+        ])
+
+        _ = try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
+
+        #expect(try context.fetch(FetchDescriptor<Account>()).first?.title == "Карта *9310")
+    }
+
+    @Test func depositMovesGoFromSourceToRecipientAccount() throws {
+        let context = try makeContext()
+
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        let toDeposit = try findEntry(titled: "На депозит", in: context)
+        let fromDeposit = try findEntry(titled: "С депозита", in: context)
+        #expect(toDeposit.account?.kind == .card)
+        #expect(toDeposit.counterAccount?.kind == .deposit)
+        #expect(fromDeposit.account?.kind == .deposit)
+        #expect(fromDeposit.counterAccount?.kind == .card)
+        let deposit = try #require(toDeposit.counterAccount)
+        #expect(deposit.title == "Депозит" && deposit.number == "" && deposit.anchorBalance == 0 && deposit.anchorDay == nil)
+    }
+
+    @Test func secondImportReusesDepositAccount() throws {
+        let context = try makeContext()
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+        let laterStatement = makeStatement(rows: [
+            makeRow("25.07.2026", "Перевод на депозит", operationAmount: -5000, expense: -5000),
+        ])
+
+        _ = try importStatement(laterStatement, mode: .initialHistory, context: context, now: importedAt)
+
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+        #expect(accounts.filter { account in account.kind == .deposit }.count == 1)
+        #expect(accounts.count == 2)
+    }
+
+    @Test func purchaseRowWithIncomeIsRefund() throws {
+        let context = try makeContext()
+        let statement = makeStatement(rows: [
+            makeRow("12.07.2026", "Операция оплаты у коммерсанта WILDBERRIES", operationAmount: 11, income: 11),
+            makeRow("13.07.2026", "Операция оплаты у коммерсанта IP KUZNETSOV", operationAmount: 50, income: 50),
+        ])
+
+        _ = try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
+
+        let marketplaceRefund = try findEntry(titled: "Wildberries", in: context)
+        #expect(marketplaceRefund.type == .income)
+        #expect(marketplaceRefund.amount == 11)
+        #expect(marketplaceRefund.categoryId == "marketplaces")
+        let unknownRefund = try findEntry(titled: "Ip Kuznetsov", in: context)
+        #expect(unknownRefund.type == .income)
+        #expect(unknownRefund.categoryId == "refunds")
     }
 
     @Test func transferFeeIsSplitFromAmount() throws {
@@ -187,6 +252,9 @@ import Testing
 
         let entry = try findEntry(titled: "На свою карту Kaspi", in: context)
         #expect(entry.type == .transfer)
+        #expect(entry.account?.kind == .card)
+        #expect(entry.counterAccount?.kind == .ownOtherCard)
+        #expect(entry.counterAccount?.title == "Kaspi *3436")
         #expect(entry.categoryId == "ownTransfer")
         #expect(entry.isReviewed)
     }
@@ -243,6 +311,7 @@ import Testing
         print("IMPORT-REPORT family-sized:", familySized.count, "family:", familySized.filter { entry in entry.categoryId == "family" }.count, "own Kaspi:", familySized.filter { entry in entry.categoryId == "ownTransfer" }.count)
         print("IMPORT-REPORT installment-sized:", installmentSized.count, "installments:", installmentSized.filter { entry in entry.categoryId == "installments" }.count, "own Kaspi:", installmentSized.filter { entry in entry.categoryId == "ownTransfer" }.count)
         print("IMPORT-REPORT own Kaspi:", entries.filter { entry in entry.title == "На свою карту Kaspi" }.count)
+        print("IMPORT-REPORT accounts:", try context.fetch(FetchDescriptor<Account>()).map { account in "\(account.kind.rawValue):\(account.title)" })
         print("IMPORT-REPORT non-positive amounts:", entries.filter { entry in entry.amount <= 0 }.count, "negative fees:", entries.filter { entry in entry.feeAmount < 0 }.count)
         print("IMPORT-REPORT needs review:", entries.filter { entry in !entry.isReviewed }.count)
     }
