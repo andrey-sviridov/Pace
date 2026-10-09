@@ -1,0 +1,253 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import KopilkaCore
+
+@Suite struct ImporterTests {
+    private let importedAt = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private func makeRow(
+        _ dotted: String,
+        _ description: String,
+        operationAmount: Decimal,
+        income: Decimal = 0,
+        expense: Decimal = 0,
+        fee: Decimal = 0
+    ) -> StatementRow {
+        let day = CalendarDay(dotted: dotted)!
+        return StatementRow(
+            operationDay: day,
+            processingDay: day,
+            description: description,
+            operationAmount: operationAmount,
+            currency: "KZT",
+            incomeAmount: income,
+            expenseAmount: expense,
+            feeAmount: fee,
+            cardOrAccount: "*2936"
+        )
+    }
+
+    // Итоги считаем из строк, чтобы checkTotals проходил; для проверки расхождения их подменяют.
+    private func makeStatement(rows: [StatementRow], accountNumber: String = "KZ126010002008249310", totals: StatementTotals? = nil) -> ParsedStatement {
+        let rowTotals = StatementTotals(
+            income: rows.reduce(Decimal(0)) { sum, row in sum + row.incomeAmount },
+            expense: rows.reduce(Decimal(0)) { sum, row in sum + row.expenseAmount },
+            fee: rows.reduce(Decimal(0)) { sum, row in sum + row.feeAmount }
+        )
+        let header = StatementHeader(
+            accountNumber: accountNumber,
+            accountType: "Текущий счет",
+            periodStart: CalendarDay(dotted: "01.07.2026")!,
+            periodEnd: CalendarDay(dotted: "31.07.2026")!,
+            generatedOn: CalendarDay(dotted: "31.07.2026")!,
+            openingBalance: 0,
+            closingBalance: 0,
+            availableAmount: nil,
+            totals: totals ?? rowTotals
+        )
+        return ParsedStatement(header: header, rows: rows)
+    }
+
+    /// Шесть строк из брифа: Magnum, аванс, на депозит, с депозита, 54 000 после аванса, неизвестный ИП.
+    private func makeSixRowStatement() -> ParsedStatement {
+        makeStatement(rows: [
+            makeRow("10.07.2026", "Операция оплаты у коммерсанта MAGNUM.ASF36.", operationAmount: -1398, expense: -1398),
+            makeRow("15.07.2026", "Поступление на счет ТОО \"АЦЭПАК\"", operationAmount: 400_000, income: 400_000),
+            makeRow("15.07.2026", "Перевод на депозит", operationAmount: -100_000, expense: -100_000),
+            makeRow("16.07.2026", "Зачисление с депозита", operationAmount: 10_000, income: 10_000),
+            makeRow("17.07.2026", "Перевод на другую карту", operationAmount: -54_000, expense: -54_200),
+            makeRow("20.07.2026", "Операция оплаты у коммерсанта IP KUZNETSOV", operationAmount: -2500, expense: -2500),
+        ])
+    }
+
+    private func makeContext() throws -> ModelContext {
+        ModelContext(try makeModelContainer(inMemory: true))
+    }
+
+    private func findEntry(titled title: String, in context: ModelContext) throws -> JournalEntry {
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
+        return try #require(entries.first { entry in entry.title == title })
+    }
+
+    @Test func firstImportAddsAllRowsAndClassifiesThem() throws {
+        let context = try makeContext()
+
+        let result = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        #expect(result.addedCount == 6)
+        #expect(result.alreadyKnownCount == 0)
+        #expect(result.accountKind == .card)
+        #expect(try findEntry(titled: "На депозит", in: context).type == .transfer)
+        #expect(try findEntry(titled: "С депозита", in: context).type == .transfer)
+        #expect(try findEntry(titled: "Ip Kuznetsov", in: context).isReviewed == false)
+        #expect(try findEntry(titled: "Magnum", in: context).categoryId == "groceries")
+        #expect(try findEntry(titled: "Зарплата", in: context).categoryId == "salary")
+        #expect(try findEntry(titled: "Перевод на другую карту", in: context).categoryId == "installments")
+        #expect(result.needsReviewCount == 1)
+        #expect(try context.fetch(FetchDescriptor<SourceRecord>()).count == 6)
+    }
+
+    @Test func secondImportOfSameStatementAddsNothing() throws {
+        let context = try makeContext()
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        let result = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        #expect(result.addedCount == 0)
+        #expect(result.alreadyKnownCount == 6)
+        #expect(try context.fetch(FetchDescriptor<JournalEntry>()).count == 6)
+    }
+
+    @Test func initialHistoryNeverAffectsBalance() throws {
+        let context = try makeContext()
+
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
+        #expect(entries.allSatisfy { entry in !entry.affectsBalance })
+    }
+
+    @Test func regularImportAffectsBalanceFromAnchorDay() throws {
+        let context = try makeContext()
+        context.insert(Account(kind: .card, title: "Карта *9310", number: "KZ126010002008249310", anchorDay: CalendarDay(dotted: "16.07.2026")!))
+        try context.save()
+
+        _ = try importStatement(makeSixRowStatement(), mode: .regular, context: context, now: importedAt)
+
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
+        let anchorDay = CalendarDay(dotted: "16.07.2026")!
+        #expect(entries.count == 6)
+        #expect(entries.filter { entry in entry.day >= anchorDay }.allSatisfy { entry in entry.affectsBalance })
+        #expect(entries.filter { entry in entry.day < anchorDay }.allSatisfy { entry in !entry.affectsBalance })
+    }
+
+    @Test func unknownAccountThrowsAndWritesNothing() throws {
+        let context = try makeContext()
+
+        #expect(throws: ImportError.unknownAccount(number: "KZ126010002008249310")) {
+            try importStatement(makeSixRowStatement(), mode: .regular, context: context, now: importedAt)
+        }
+
+        #expect(try context.fetch(FetchDescriptor<JournalEntry>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<SourceRecord>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<Account>()).isEmpty)
+    }
+
+    @Test func totalsMismatchThrowsAndWritesNothing() throws {
+        let context = try makeContext()
+        let wrongTotals = StatementTotals(income: 1, expense: 0, fee: 0)
+        let statement = makeStatement(rows: makeSixRowStatement().rows, totals: wrongTotals)
+
+        #expect(throws: StatementError.self) {
+            try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
+        }
+
+        #expect(try context.fetch(FetchDescriptor<JournalEntry>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<Account>()).isEmpty)
+    }
+
+    @Test func initialHistoryCreatesCardAccount() throws {
+        let context = try makeContext()
+
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+        #expect(accounts.count == 1)
+        #expect(accounts.first?.kind == .card)
+        #expect(accounts.first?.title == "Карта *9310")
+        #expect(accounts.first?.anchorDay == nil)
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
+        #expect(entries.allSatisfy { entry in entry.account?.number == "KZ126010002008249310" })
+    }
+
+    @Test func transferFeeIsSplitFromAmount() throws {
+        let context = try makeContext()
+        let statement = makeStatement(rows: [
+            makeRow("20.09.2026", "Перевод на другую карту", operationAmount: -30_000, expense: -30_250),
+        ])
+
+        _ = try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
+
+        let entry = try findEntry(titled: "Перевод на другую карту", in: context)
+        #expect(entry.type == .expense)
+        #expect(entry.amount == 30_000)
+        #expect(entry.feeAmount == 250)
+        #expect(entry.categoryId == "transfersToPeople")
+        #expect(entry.isReviewed == false)
+    }
+
+    @Test func transferBeforeKaspiDateBecomesOwnTransfer() throws {
+        let context = try makeContext()
+        let statement = makeStatement(rows: [
+            makeRow("20.01.2026", "Перевод на другую карту", operationAmount: -30_000, expense: -30_200),
+        ])
+
+        _ = try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
+
+        let entry = try findEntry(titled: "На свою карту Kaspi", in: context)
+        #expect(entry.type == .transfer)
+        #expect(entry.categoryId == "ownTransfer")
+        #expect(entry.isReviewed)
+    }
+
+    @Test func userEditsDoNotBreakReimport() throws {
+        let context = try makeContext()
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+        let entry = try findEntry(titled: "Ip Kuznetsov", in: context)
+        entry.title = "Сапожник"
+        entry.categoryId = "home"
+        try context.save()
+
+        let result = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+
+        #expect(result.addedCount == 0)
+        #expect(result.alreadyKnownCount == 6)
+    }
+}
+
+// Реальная выписка содержит личные данные и в git не попадает, поэтому без неё тест выключен.
+@Suite struct ImporterAcceptanceTests {
+    @Test(.disabled(if: findRealStatementURL() == nil, "Нет Fixtures/halyk-2026.pdf"))
+    func importsRealStatementTwiceWithoutDuplicates() throws {
+        let fileURL = try #require(findRealStatementURL())
+        let statement = try readStatement(lines: try readTextLines(pdfData: try Data(contentsOf: fileURL)))
+        let context = ModelContext(try makeModelContainer(inMemory: true))
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+        let firstResult = try importStatement(statement, mode: .initialHistory, context: context, now: now)
+        let account = try #require(try context.fetch(FetchDescriptor<Account>()).first)
+        account.anchorDay = statement.header.generatedOn
+        try context.save()
+        let secondResult = try importStatement(statement, mode: .regular, context: context, now: now)
+
+        #expect(firstResult.addedCount == 1160)
+        #expect(secondResult.addedCount == 0)
+        #expect(secondResult.alreadyKnownCount == 1160)
+        try printCategoryCounts(context: context)
+    }
+
+    // Не проверка, а отчёт для сверки с историей пользователя.
+    private func printCategoryCounts(context: ModelContext) throws {
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
+        let countByCategory = Dictionary(grouping: entries) { entry in entry.categoryId ?? "nil" }
+            .mapValues { group in group.count }
+            .sorted { first, second in first.value > second.value }
+        print("IMPORT-REPORT categories:", countByCategory.map { pair in "\(pair.key)=\(pair.value)" }.joined(separator: ", "))
+        let transfers = entries.filter { entry in
+            entry.sources.contains { source in detectOperationKind(description: source.rawDescription ?? "") == .transferToOtherCard }
+        }
+        print("IMPORT-REPORT transfers to other card:", transfers.count)
+        let familySized = transfers.filter { entry in entry.amount == 100_000 || entry.amount == 120_000 }
+        let installmentSized = transfers.filter { entry in entry.amount >= 53_500 && entry.amount <= 54_500 }
+        print("IMPORT-REPORT family-sized:", familySized.count, "family:", familySized.filter { entry in entry.categoryId == "family" }.count, "own Kaspi:", familySized.filter { entry in entry.categoryId == "ownTransfer" }.count)
+        print("IMPORT-REPORT installment-sized:", installmentSized.count, "installments:", installmentSized.filter { entry in entry.categoryId == "installments" }.count, "own Kaspi:", installmentSized.filter { entry in entry.categoryId == "ownTransfer" }.count)
+        print("IMPORT-REPORT own Kaspi:", entries.filter { entry in entry.title == "На свою карту Kaspi" }.count)
+        print("IMPORT-REPORT non-positive amounts:", entries.filter { entry in entry.amount <= 0 }.count, "negative fees:", entries.filter { entry in entry.feeAmount < 0 }.count)
+        print("IMPORT-REPORT needs review:", entries.filter { entry in !entry.isReviewed }.count)
+    }
+}
+
+private func findRealStatementURL() -> URL? {
+    Bundle.module.url(forResource: "halyk-2026", withExtension: "pdf", subdirectory: "Fixtures")
+}
