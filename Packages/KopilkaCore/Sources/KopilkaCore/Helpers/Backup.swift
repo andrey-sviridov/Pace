@@ -29,12 +29,18 @@ public func makeBackup(context: ModelContext) throws -> Data {
 /// Полная замена данных копией из файла. Единственное место, где база стирается целиком, — восстановление,
 /// которое пользователь подтвердил. Файл разбирается и проверяется до первого удаления.
 public func restoreBackup(_ data: Data, context: ModelContext) throws {
+    try restoreBackup(data, context: context, afterDelete: {})
+}
+
+/// `afterDelete` выполняется внутри транзакции сразу после удаления: тест с его помощью проверяет откат.
+func restoreBackup(_ data: Data, context: ModelContext, afterDelete: () throws -> Void) throws {
     let file = try JSONDecoder().decode(BackupFile.self, from: data)
     try checkBackup(file)
 
     do {
         try context.transaction {
             try deleteAllData(context: context)
+            try afterDelete()
             insertBackup(file, context: context)
         }
     } catch {
@@ -70,9 +76,9 @@ private func checkBackup(_ file: BackupFile) throws {
 // MARK: - Восстановление
 
 private func deleteAllData(context: ModelContext) throws {
-    // Записи удаляют и свои источники каскадом; остальные модели — каждую по отдельности.
-    for entry in try context.fetch(FetchDescriptor<JournalEntry>()) { context.delete(entry) }
+    // Источники удаляем до записей: двойное удаление через каскад ломает rollback (SwiftData падает при откате).
     for source in try context.fetch(FetchDescriptor<SourceRecord>()) { context.delete(source) }
+    for entry in try context.fetch(FetchDescriptor<JournalEntry>()) { context.delete(entry) }
     for account in try context.fetch(FetchDescriptor<Account>()) { context.delete(account) }
     for category in try context.fetch(FetchDescriptor<SpendingCategory>()) { context.delete(category) }
     for rule in try context.fetch(FetchDescriptor<MerchantRule>()) { context.delete(rule) }

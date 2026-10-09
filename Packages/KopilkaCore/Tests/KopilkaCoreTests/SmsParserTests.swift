@@ -36,6 +36,17 @@ import Testing
         #expect(parsed?.merchant == "GLOVO")
     }
 
+    @Test func incomeWithBalanceHasNoMerchant() {
+        let parsed = parseSms("Зачисление 402 487,00 KZT Остаток 450 000,00")
+
+        #expect(parsed?.merchant == nil)
+        #expect(parsed?.balance == 450_000)
+    }
+
+    @Test func amountIgnoresDigitsGluedToTheLeft() {
+        #expect(parseSms("Карта 1234 500 KZT")?.amount == 500)
+    }
+
     @Test func returnsNilWithoutAmount() {
         #expect(parseSms("Ваш код подтверждения 4821") == nil)
         #expect(parseSms("") == nil)

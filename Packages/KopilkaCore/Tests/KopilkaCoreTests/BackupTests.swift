@@ -131,4 +131,21 @@ import Testing
         #expect(throws: BackupError.self) { try restoreBackup(broken, context: target) }
         #expect(try target.fetch(FetchDescriptor<JournalEntry>()).count == 1)
     }
+
+    private struct InjectedFailure: Error {}
+
+    @Test func failureAfterDeletionRollsBackToOriginalData() throws {
+        let container = try makeModelContainer(inMemory: true)
+        let context = ModelContext(container)
+        try fillContext(context)
+        let before = try makeSnapshot(context)
+        let backup = try makeBackup(context: ModelContext(try makeModelContainer(inMemory: true)))
+
+        #expect(throws: InjectedFailure.self) {
+            try restoreBackup(backup, context: context, afterDelete: { throw InjectedFailure() })
+        }
+
+        #expect(try makeSnapshot(context) == before)
+        #expect(try makeSnapshot(ModelContext(container)) == before)
+    }
 }

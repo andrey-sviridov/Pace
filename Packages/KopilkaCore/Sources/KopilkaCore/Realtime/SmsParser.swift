@@ -55,7 +55,7 @@ private struct FoundAmount {
 
 /// Первая сумма с валютой: `1 500,00 KZT`, `1500 ₸`, `1500.00 KZT`.
 private func findAmount(in text: String) -> FoundAmount? {
-    let amountRegex = /(\d{1,3}(?:[ \u{00A0}]\d{3})+|\d+)([.,]\d{1,2})?\s*(?:KZT|₸|тг|тенге)/.ignoresCase()
+    let amountRegex = /(?:^|\D)(\d{1,3}(?:[ \u{00A0}]\d{3})+|\d+)([.,]\d{1,2})?\s*(?:KZT|₸|тг|тенге)/.ignoresCase()
     guard let match = text.firstMatch(of: amountRegex),
           let amount = parseDecimal(String(match.1) + String(match.2 ?? ""))
     else { return nil }
@@ -71,7 +71,7 @@ private func findIsIncome(in text: String) -> Bool {
 private func findMerchant(in text: String, after amountEnd: String.Index) -> String? {
     let tail = String(text[amountEnd...])
     let markerRegex = /(?:^|\s)(?:в|at|оплата)\s+(.+?)(?=\s+(?:остаток|баланс|дост\w*)|$)/.ignoresCase()
-    let tailRegex = /^\s*(.+?)(?=\s+(?:остаток|баланс|дост\w*)|$)/.ignoresCase()
+    let tailRegex = /^(?!\s*(?:остаток|баланс|дост))\s*(.+?)(?=\s+(?:остаток|баланс|дост\w*)|$)/.ignoresCase()
 
     let rawMerchant = tail.firstMatch(of: markerRegex).map { match in String(match.1) }
         ?? tail.firstMatch(of: tailRegex).map { match in String(match.1) }

@@ -32,6 +32,7 @@ import Testing
             account: card,
             rules: makeBuiltInMerchantRules(),
             salaryHistory: salaryHistory,
+            salaryMinShareOfMedian: 0.5,
             context: context,
             now: now
         )

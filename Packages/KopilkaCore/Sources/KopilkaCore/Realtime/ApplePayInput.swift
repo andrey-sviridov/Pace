@@ -18,6 +18,7 @@ public func recordRealtimeOperation(
     account: Account,
     rules: [MerchantRule],
     salaryHistory: [Decimal],
+    salaryMinShareOfMedian: Decimal,
     context: ModelContext,
     now: Date
 ) throws -> JournalEntry {
@@ -52,6 +53,7 @@ public func recordRealtimeOperation(
             account: account,
             rules: rules,
             salaryHistory: salaryHistory,
+            salaryMinShareOfMedian: salaryMinShareOfMedian,
             context: context,
             now: now
         )
@@ -72,6 +74,7 @@ private func makeOrFindEntry(
     account: Account,
     rules: [MerchantRule],
     salaryHistory: [Decimal],
+    salaryMinShareOfMedian: Decimal,
     context: ModelContext,
     now: Date
 ) throws -> JournalEntry {
@@ -79,12 +82,12 @@ private func makeOrFindEntry(
     case .attach(let entry):
         return entry
     case .possibleDuplicate(let other):
-        let entry = makeRealtimeEntry(incoming, rawMerchant: rawMerchant, account: account, rules: rules, salaryHistory: salaryHistory, now: now)
+        let entry = makeRealtimeEntry(incoming, rawMerchant: rawMerchant, account: account, rules: rules, salaryHistory: salaryHistory, salaryMinShareOfMedian: salaryMinShareOfMedian, now: now)
         entry.possibleDuplicateOf = other
         context.insert(entry)
         return entry
     case .noMatch:
-        let entry = makeRealtimeEntry(incoming, rawMerchant: rawMerchant, account: account, rules: rules, salaryHistory: salaryHistory, now: now)
+        let entry = makeRealtimeEntry(incoming, rawMerchant: rawMerchant, account: account, rules: rules, salaryHistory: salaryHistory, salaryMinShareOfMedian: salaryMinShareOfMedian, now: now)
         context.insert(entry)
         return entry
     }
@@ -96,10 +99,11 @@ private func makeRealtimeEntry(
     account: Account,
     rules: [MerchantRule],
     salaryHistory: [Decimal],
+    salaryMinShareOfMedian: Decimal,
     now: Date
 ) -> JournalEntry {
     let isSalary = incoming.type == .income
-        && isSalaryAmount(incoming.amount, salaryHistory: salaryHistory, minShareOfMedian: Decimal(string: "0.5")!)
+        && isSalaryAmount(incoming.amount, salaryHistory: salaryHistory, minShareOfMedian: salaryMinShareOfMedian)
     let categoryId = isSalary ? "salary" : findCategoryId(merchantKey: incoming.merchantKey, rules: rules)
 
     return JournalEntry(
@@ -117,7 +121,8 @@ private func makeRealtimeEntry(
     )
 }
 
-/// Крупное поступление, похожее на прошлые зарплаты: бюджет не считает его доходом, но ждёт прогнозную зарплату.
+/// Крупное поступление, похожее на прошлые зарплаты, получает категорию «salary»: бюджет считает его доходом,
+/// а ожидаемая зарплата периода гасится этим событием.
 private func isSalaryAmount(_ amount: Decimal, salaryHistory: [Decimal], minShareOfMedian: Decimal) -> Bool {
     guard !salaryHistory.isEmpty else { return false }
     return amount >= calculateMedian(salaryHistory) * minShareOfMedian
