@@ -130,6 +130,50 @@ import Testing
         #expect(summary.daysLeft == 1)
     }
 
+    @Test func uncategorizedIncomeIsIncomeNotRefund() {
+        let base = [makeBudgetEntry("05.10.2026", .expense, 20_000, categoryId: "groceries")]
+        let withIncome = base + [
+            makeBudgetEntry("06.10.2026", .income, 5_000, categoryId: nil),
+            makeBudgetEntry("07.10.2026", .income, 1_000, categoryId: "unknownCategory"),
+        ]
+
+        let before = calculateBudget(
+            period: makeOctober2026(), today: makeDay("10.10.2026"), mode: .calendarMonth,
+            entries: base, categories: makeCategories(), salaryEvents: [], monthlySavingsGoal: 0
+        )
+        let after = calculateBudget(
+            period: makeOctober2026(), today: makeDay("10.10.2026"), mode: .calendarMonth,
+            entries: withIncome, categories: makeCategories(), salaryEvents: [], monthlySavingsGoal: 0
+        )
+
+        #expect(after.incomeTotal == before.incomeTotal + 6_000)
+        #expect(after.flexibleSpent == before.flexibleSpent)
+    }
+
+    @Test func feesAreBankFeesSpending() {
+        let card = Account(kind: .card, title: "Карта", number: "KZ1")
+        let deposit = Account(kind: .deposit, title: "Депозит", number: "KZ2")
+        let entries = [
+            makeBudgetEntry("05.10.2026", .transfer, 30_000, categoryId: "ownTransfer", account: card, counterAccount: deposit, feeTenge: 250),
+            makeBudgetEntry("06.10.2026", .expense, 10_000, categoryId: "transfersToPeople", account: card, feeTenge: 100),
+        ]
+        let categories = makeCategories()
+        categories.first { category in category.id == "bankFees" }?.monthlyLimit = 1_000
+
+        let summary = calculateBudget(
+            period: makeOctober2026(), today: makeDay("10.10.2026"), mode: .calendarMonth,
+            entries: entries, categories: categories, salaryEvents: [], monthlySavingsGoal: 0
+        )
+        let statuses = calculateLimitStatuses(
+            period: makeOctober2026(), today: makeDay("10.10.2026"), mode: .calendarMonth,
+            entries: entries, categories: categories
+        )
+
+        // Само перемещение не трата, его комиссия — трата; у покупки сумма и комиссия идут в разные категории.
+        #expect(summary.flexibleSpent == 10_350)
+        #expect(statuses.first { status in status.category.id == "bankFees" }?.spent == 350)
+    }
+
     // MARK: - Типичная сумма обязательной категории
 
     @Test func typicalMonthlyAmountIsMedianOfLastFullMonths() {

@@ -39,10 +39,10 @@ public func calculateSpendingByCategory(period: Period, entries: [JournalEntry],
     let kindsById = makeCategoryKindsById(categories)
     let periodEntries = findPeriodEntries(entries, period: period)
 
+    let parts = periodEntries.flatMap { entry in makeSpendingParts(of: entry, kindsById: kindsById) }
     var totalsByCategoryId: [String: Decimal] = [:]
-    for entry in periodEntries {
-        let spendingAmount = calculateSpendingAmount(of: entry, kind: findCategoryKind(of: entry, kindsById: kindsById))
-        totalsByCategoryId[entry.categoryId ?? "uncategorized", default: 0] += spendingAmount
+    for part in parts {
+        totalsByCategoryId[part.categoryId, default: 0] += part.amount
     }
 
     return totalsByCategoryId

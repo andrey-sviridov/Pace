@@ -119,10 +119,12 @@ func calculatePlannedAmount(category: SpendingCategory, period: Period, mode: Pe
 public func calculateTypicalMonthlyAmount(categoryId: String, entries: [JournalEntry], before day: CalendarDay, monthCount: Int) -> Decimal {
     guard monthCount > 0 else { return 0 }
     let months = makeFullMonths(before: day, monthCount: monthCount)
+    // Функцию зовут для обязательных и гибких категорий: для обоих видов покупка — плюс, возврат — минус.
+    let kindsById: [String: CategoryKind] = [categoryId: .flexible]
     let monthlyAmounts = months.map { month in
-        // Справочник категорий не нужен: функцию зовут для обязательных и гибких, где покупка — плюс, возврат — минус.
-        calculateCategorySpending(categoryId: categoryId, entries: findPeriodEntries(entries, period: month), kindsById: [:])
+        calculateCategorySpending(categoryId: categoryId, entries: findPeriodEntries(entries, period: month), kindsById: kindsById)
     }
+    // Месяц без платежа — честный 0: закончившаяся рассрочка не должна держать план.
     return calculateMedian(monthlyAmounts)
 }
 
@@ -153,7 +155,7 @@ private func hasDayOfMonth(_ dayOfMonth: Int, in period: Period) -> Bool {
     }
 }
 
-/// Траты гибких категорий, включая записи без категории.
+/// Траты гибких категорий, включая расходы без категории и комиссии банка.
 func calculateFlexibleSpent(periodEntries: [JournalEntry], kindsById: [String: CategoryKind]) -> Decimal {
     calculateSpending(of: periodEntries, kinds: [.flexible], kindsById: kindsById)
 }
@@ -221,6 +223,7 @@ private func calculateUsedShare(spent: Decimal, limit: Decimal) -> Double {
 
 /// Уровень считается в Decimal, чтобы ровно 85 % не стали 84,999… из-за Double.
 private func findLimitLevel(spent: Decimal, limit: Decimal, warnAtPercent: Int) -> LimitLevel {
+    // Нулевой лимит означает «не тратить вовсе», поэтому любая трата — перерасход.
     guard limit > 0 else { return spent > 0 ? .over : .normal }
     guard spent <= limit else { return .over }
     guard spent * 100 < limit * Decimal(warnAtPercent) else { return .warning }

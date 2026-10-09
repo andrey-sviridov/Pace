@@ -44,6 +44,23 @@ import Testing
         #expect(spending.map { item in item.total } == [5_000, 3_000, 1_000])
     }
 
+    @Test func feesShowUpInEverySeries() {
+        let entries = [
+            makeBudgetEntry("01.10.2026", .transfer, 30_000, categoryId: "ownTransfer", feeTenge: 250),
+            makeBudgetEntry("02.10.2026", .expense, 1_000, categoryId: "groceries", feeTenge: 50),
+            makeBudgetEntry("02.10.2026", .income, 5_000, categoryId: nil),
+        ]
+
+        let spending = calculateSpendingByCategory(period: makeOctober2026(), entries: entries, categories: categories)
+        let series = calculateCumulativeSpending(period: makeOctober2026(), today: makeDay("02.10.2026"), entries: entries, categories: categories)
+        let leftovers = calculateMonthlyLeftover(months: [makeOctober2026()], entries: entries, categories: categories)
+
+        #expect(spending.map { item in item.categoryId } == ["groceries", "bankFees"])
+        #expect(spending.map { item in item.total } == [1_000, 300])
+        #expect(series.map { point in point.total } == [250, 1_300])
+        #expect(leftovers.first?.leftover == 3_700)
+    }
+
     @Test func monthlyLeftoverIsIncomeMinusSpending() {
         let september = Period(start: makeDay("01.09.2026"), endExclusive: makeDay("01.10.2026"))
         let entries = [
