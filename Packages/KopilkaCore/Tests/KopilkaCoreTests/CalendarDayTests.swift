@@ -42,4 +42,25 @@ struct CalendarDayTests {
         let data = try JSONEncoder().encode(day)
         #expect(try JSONDecoder().decode(CalendarDay.self, from: data) == day)
     }
+
+    @Test func acceptsLeapDay() {
+        #expect(CalendarDay(dotted: "29.02.2024") == CalendarDay(year: 2024, month: 2, day: 29))
+    }
+
+    @Test(arguments: ["29.02.2025", "31.04.2025", "+13.10.2025", "13.10.25", "1.10.2025", "13-10-2025", "١٣.10.2025"])
+    func rejectsBadDotted(text: String) {
+        #expect(CalendarDay(dotted: text) == nil)
+    }
+
+    @Test func addsDaysAcrossLeapYear() {
+        let day = CalendarDay(year: 2024, month: 1, day: 1)
+        #expect(day.adding(days: 366) == CalendarDay(year: 2025, month: 1, day: 1))
+    }
+
+    @Test func throwsOnDecodingImpossibleDate() {
+        let json = Data(#"{"year":2025,"month":13,"day":1}"#.utf8)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(CalendarDay.self, from: json)
+        }
+    }
 }

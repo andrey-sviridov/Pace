@@ -28,4 +28,11 @@ struct MoneyParsingTests {
             try parseAmount("abc")
         }
     }
+
+    @Test(arguments: ["12abc", "-", "1,093.50", "", "1 093,00 KZT", "1e3", "5-"])
+    func throwsOnJunk(text: String) {
+        #expect(throws: ParsingError.badAmount(text)) {
+            try parseAmount(text)
+        }
+    }
 }
