@@ -3,6 +3,7 @@ import SwiftData
 
 @Model
 public final class MerchantRule {
+    // SwiftData при конфликте молча перезаписывает запись, поэтому перед вставкой проверяй, что такой нет.
     @Attribute(.unique) public var merchantKey: String
     public var categoryId: String
     public var title: String?

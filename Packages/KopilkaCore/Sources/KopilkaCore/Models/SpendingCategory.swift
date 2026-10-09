@@ -4,6 +4,7 @@ import SwiftData
 @Model
 public final class SpendingCategory {
     /// Английский slug, например "groceries".
+    // SwiftData при конфликте молча перезаписывает запись, поэтому перед вставкой проверяй, что такой нет.
     @Attribute(.unique) public var id: String
     public var name: String
     public var iconName: String

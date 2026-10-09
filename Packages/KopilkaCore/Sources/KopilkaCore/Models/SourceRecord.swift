@@ -5,6 +5,7 @@ import SwiftData
 @Model
 public final class SourceRecord {
     public var kind: SourceKind
+    // SwiftData при конфликте молча перезаписывает запись, поэтому перед вставкой проверяй, что такой нет.
     @Attribute(.unique) public var key: String
     public var operationDay: CalendarDay?
     public var processingDay: CalendarDay?
