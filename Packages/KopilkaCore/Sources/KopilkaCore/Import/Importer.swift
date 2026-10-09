@@ -334,7 +334,7 @@ private func findRowMatches(entries: [JournalEntry], candidates: [JournalEntry])
     var freeCandidates = candidates
     var matches: [MatchResult] = []
     for entry in entries {
-        let incoming = IncomingOperation(kind: .statement, day: entry.day, time: nil, amount: entry.amount, merchantKey: entry.merchantKey)
+        let incoming = IncomingOperation(kind: .statement, day: entry.day, time: nil, type: entry.type, amount: entry.amount, merchantKey: entry.merchantKey)
         let match = findMatchingEntry(for: incoming, candidates: freeCandidates, realtimeWindowMinutes: 10, statementWindowDays: 3)
         if let target = findAttachTarget(match) {
             freeCandidates.removeAll { candidate in candidate === target }
@@ -354,7 +354,9 @@ private func attachRows(_ plans: [RowPlan], receivedAt: Date) {
     for plan in plans {
         guard let target = findAttachTarget(plan.match) else { continue }
         target.sources.append(SourceRecord(row: plan.keyedRow.row, key: plan.keyedRow.key, receivedAt: receivedAt))
-        target.feeAmount = plan.entry.feeAmount
+        if plan.entry.feeAmount > 0 {
+            target.feeAmount = plan.entry.feeAmount
+        }
     }
 }
 

@@ -6,13 +6,15 @@ public struct IncomingOperation {
     public let day: CalendarDay
     /// Есть только у Apple Pay и SMS.
     public let time: Date?
+    public let type: EntryType
     public let amount: Decimal
     public let merchantKey: String
 
-    public init(kind: SourceKind, day: CalendarDay, time: Date?, amount: Decimal, merchantKey: String) {
+    public init(kind: SourceKind, day: CalendarDay, time: Date?, type: EntryType, amount: Decimal, merchantKey: String) {
         self.kind = kind
         self.day = day
         self.time = time
+        self.type = type
         self.amount = amount
         self.merchantKey = merchantKey
     }
@@ -34,7 +36,9 @@ public func findMatchingEntry(
     let withoutSameSource = candidates.filter { entry in
         entry.mergedInto == nil && !hasSource(entry, kind: incoming.kind)
     }
-    let sameAmount = withoutSameSource.filter { entry in entry.amount == incoming.amount }
+    // Возврат на ту же сумму не должен склеиться с покупкой: направление денег обязано совпасть.
+    let sameType = withoutSameSource.filter { entry in entry.type == incoming.type }
+    let sameAmount = sameType.filter { entry in entry.amount == incoming.amount }
     let withinTime = sameAmount.filter { entry in
         isWithinTime(entry, incoming: incoming, realtimeWindowMinutes: realtimeWindowMinutes, statementWindowDays: statementWindowDays)
     }

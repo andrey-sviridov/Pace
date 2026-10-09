@@ -29,10 +29,11 @@ import Testing
         _ kind: SourceKind,
         time: Date? = nil,
         day: CalendarDay? = nil,
+        type: EntryType = .expense,
         amount: Decimal = 1500,
         merchantKey: String = "MAGNUM"
     ) -> IncomingOperation {
-        IncomingOperation(kind: kind, day: day ?? self.day, time: time, amount: amount, merchantKey: merchantKey)
+        IncomingOperation(kind: kind, day: day ?? self.day, time: time, type: type, amount: amount, merchantKey: merchantKey)
     }
 
     private func match(_ incoming: IncomingOperation, _ candidates: [JournalEntry]) -> MatchResult {
@@ -91,6 +92,14 @@ import Testing
 
         guard case .possibleDuplicate(let entry) = result else { Issue.record("ожидали possibleDuplicate"); return }
         #expect(entry === applePay)
+    }
+
+    @Test func incomeDoesNotMatchExpenseOfSameAmount() {
+        let purchase = makeEntry(sources: [.applePay], time: noon)
+
+        let result = match(makeIncoming(.statement, type: .income), [purchase])
+
+        guard case .noMatch = result else { Issue.record("ожидали noMatch"); return }
     }
 
     @Test func differentAmountDoesNotMatch() {

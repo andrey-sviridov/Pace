@@ -295,7 +295,7 @@ import Testing
 
     // MARK: - Склейка с Apple Pay
 
-    private func addApplePayEntry(account: Account, context: ModelContext) -> JournalEntry {
+    private func addApplePayEntry(account: Account, context: ModelContext, sourceKey: String = "applepay-1") -> JournalEntry {
         let entry = JournalEntry(
             day: CalendarDay(dotted: "11.08.2026")!,
             time: Date(timeIntervalSince1970: 1_800_000_000),
@@ -309,7 +309,7 @@ import Testing
             createdAt: importedAt
         )
         context.insert(entry)
-        entry.sources = [SourceRecord(kind: .applePay, key: "applepay-1", receivedAt: importedAt)]
+        entry.sources = [SourceRecord(kind: .applePay, key: sourceKey, receivedAt: importedAt)]
         return entry
     }
 
@@ -345,6 +345,91 @@ import Testing
         #expect(result.alreadyKnownCount == 1)
         #expect(try context.fetch(FetchDescriptor<JournalEntry>()).count == 2)
         #expect(try context.fetch(FetchDescriptor<SourceRecord>()).count == 3)
+    }
+
+    private func makeMagnumRow(_ dotted: String = "12.08.2026") -> StatementRow {
+        makeRow(dotted, "Операция оплаты у коммерсанта MAGNUM.ASF36.", operationAmount: -1500, expense: -1500)
+    }
+
+    private func importSetupAccount(context: ModelContext) throws -> Account {
+        let setup = makeStatement(rows: [makeRow("01.08.2026", "Операция оплаты у коммерсанта ARBUZ", operationAmount: -700, expense: -700)])
+        _ = try importStatement(setup, mode: .initialHistory, context: context, now: importedAt)
+        return try #require(try context.fetch(FetchDescriptor<Account>()).first)
+    }
+
+    @Test func twoIdenticalRowsAttachToTwoApplePayEntries() throws {
+        let context = try makeContext()
+        let account = try importSetupAccount(context: context)
+        let first = addApplePayEntry(account: account, context: context)
+        let second = addApplePayEntry(account: account, context: context, sourceKey: "applepay-2")
+
+        let result = try importStatement(makeStatement(rows: [makeMagnumRow(), makeMagnumRow()]), mode: .regular, context: context, now: importedAt)
+
+        #expect(result.attachedCount == 2)
+        #expect(result.addedCount == 0)
+        #expect(first.sources.count == 2)
+        #expect(second.sources.count == 2)
+    }
+
+    @Test func twoIdenticalRowsWithOneApplePayEntryAttachOnceAndAddOne() throws {
+        let context = try makeContext()
+        let account = try importSetupAccount(context: context)
+        let applePay = addApplePayEntry(account: account, context: context)
+
+        let result = try importStatement(makeStatement(rows: [makeMagnumRow(), makeMagnumRow()]), mode: .regular, context: context, now: importedAt)
+
+        #expect(result.attachedCount == 1)
+        #expect(result.addedCount == 1)
+        #expect(applePay.sources.count == 2)
+        #expect(try context.fetch(FetchDescriptor<JournalEntry>()).count == 3)
+    }
+
+    @Test func refundRowDoesNotAttachToExpenseOfSameAmount() throws {
+        let context = try makeContext()
+        let account = try importSetupAccount(context: context)
+        let applePay = addApplePayEntry(account: account, context: context)
+        let refund = makeRow("12.08.2026", "Операция оплаты у коммерсанта MAGNUM.ASF36.", operationAmount: 1500, income: 1500)
+
+        let result = try importStatement(makeStatement(rows: [refund]), mode: .regular, context: context, now: importedAt)
+
+        #expect(result.attachedCount == 0)
+        #expect(result.addedCount == 1)
+        #expect(applePay.sources.count == 1)
+    }
+
+    @Test func entryAlreadyHavingStatementSourceIsNotAttachedAgain() throws {
+        let context = try makeContext()
+        let account = try importSetupAccount(context: context)
+        let applePay = addApplePayEntry(account: account, context: context)
+        _ = try importStatement(makeStatement(rows: [makeMagnumRow()]), mode: .regular, context: context, now: importedAt)
+
+        let result = try importStatement(makeStatement(rows: [makeMagnumRow("13.08.2026")]), mode: .regular, context: context, now: importedAt)
+
+        #expect(result.attachedCount == 0)
+        #expect(result.addedCount == 1)
+        #expect(applePay.sources.count == 2)
+    }
+
+    @Test func attachingRowWithoutFeeKeepsExistingFee() throws {
+        let context = try makeContext()
+        let account = try importSetupAccount(context: context)
+        let applePay = addApplePayEntry(account: account, context: context)
+        applePay.feeAmount = 30
+
+        _ = try importStatement(makeStatement(rows: [makeMagnumRow()]), mode: .regular, context: context, now: importedAt)
+
+        #expect(applePay.feeAmount == 30)
+    }
+
+    @Test func attachingRowWithFeeWritesIt() throws {
+        let context = try makeContext()
+        let account = try importSetupAccount(context: context)
+        let applePay = addApplePayEntry(account: account, context: context)
+        let row = makeRow("12.08.2026", "Операция оплаты у коммерсанта MAGNUM.ASF36.", operationAmount: -1500, expense: -1500, fee: -20)
+
+        _ = try importStatement(makeStatement(rows: [row]), mode: .regular, context: context, now: importedAt)
+
+        #expect(applePay.feeAmount == 20)
     }
 
     @Test func otherMerchantWithSameAmountMarksPossibleDuplicate() throws {
