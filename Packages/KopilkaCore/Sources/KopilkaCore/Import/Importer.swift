@@ -13,6 +13,8 @@ public enum ImportError: Error, Equatable {
 
 public struct ImportResult: Equatable, Sendable {
     public let addedCount: Int
+    /// Строки, склеенные с уже существующими записями (Apple Pay, SMS); новых записей для них нет.
+    public let attachedCount: Int
     public let alreadyKnownCount: Int
     public let needsReviewCount: Int
     public let accountKind: AccountKind
@@ -44,8 +46,8 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
         let kinds = newRows.map { keyedRow in detectOperationKind(description: keyedRow.row.description) }
         let depositAccount = try findOrCreateAccount(kind: .deposit, title: "Депозит", isNeeded: hasDepositMoves(kinds), context: context)
 
-        // Проход 1: создаём все записи, чтобы правила переводов видели аванс из этого же файла (Ruling 3).
-        let newEntries = zip(newRows, kinds).map { keyedRow, kind in
+        // Проход 1: собираем записи по строкам (в базу пока не вставляем) и ищем для каждой уже существующую запись из Apple Pay/SMS.
+        let builtEntries = zip(newRows, kinds).map { keyedRow, kind in
             makeEntry(
                 from: keyedRow,
                 kind: kind,
@@ -56,7 +58,20 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
                 now: now
             )
         }
-        addEntries(newEntries, rows: newRows, context: context, receivedAt: now)
+        let candidates = try loadMatchCandidates(of: account, context: context)
+        let matches = findRowMatches(entries: builtEntries, candidates: candidates)
+        let plans = newRows.indices.map { index in
+            RowPlan(keyedRow: newRows[index], kind: kinds[index], entry: builtEntries[index], match: matches[index])
+        }
+        let attachedPlans = plans.filter { plan in findAttachTarget(plan.match) != nil }
+        let freshPlans = plans.filter { plan in findAttachTarget(plan.match) == nil }
+        attachRows(attachedPlans, receivedAt: now)
+
+        // Остальные строки становятся новыми записями.
+        let newEntries = freshPlans.map { plan in plan.entry }
+        let freshKinds = freshPlans.map { plan in plan.kind }
+        markPossibleDuplicates(freshPlans)
+        addEntries(newEntries, rows: freshPlans.map { plan in plan.keyedRow }, context: context, receivedAt: now)
 
         // Проход 2: правила сумм для переводов на другую карту.
         let salaryEvents = findSalaryEvents(
@@ -64,7 +79,7 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
             advanceDayRange: 10...20,
             oneOffAboveMedianTimes: 1.5
         )
-        let transfers = zip(newEntries, kinds).filter { entry, kind in kind == .transferToOtherCard }.map { entry, kind in entry }
+        let transfers = zip(newEntries, freshKinds).filter { entry, kind in kind == .transferToOtherCard }.map { entry, kind in entry }
         let transferRules = transfers.map { entry in
             findAmountRule(day: entry.day, amount: entry.amount, rules: amountRules, salaryEvents: salaryEvents)
         }
@@ -81,6 +96,7 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
         try context.save()
         result = ImportResult(
             addedCount: newEntries.count,
+            attachedCount: attachedPlans.count,
             alreadyKnownCount: keyedRows.count - newRows.count,
             needsReviewCount: newEntries.filter { entry in !entry.isReviewed }.count,
             accountKind: account.kind
@@ -297,6 +313,57 @@ private func loadAmountRules(context: ModelContext) throws -> [AmountRule] {
 private func loadSourceKeys(context: ModelContext) throws -> Set<String> {
     let sources = try context.fetch(FetchDescriptor<SourceRecord>())
     return Set(sources.map { source in source.key })
+}
+
+/// Строка выписки с готовой записью и тем, что нашлось среди уже существующих записей.
+private struct RowPlan {
+    let keyedRow: KeyedRow
+    let kind: OperationKind
+    let entry: JournalEntry
+    let match: MatchResult
+}
+
+/// Кандидаты на склейку: записи счёта без источника «выписка», то есть пришедшие из Apple Pay, SMS или вручную.
+private func loadMatchCandidates(of account: Account, context: ModelContext) throws -> [JournalEntry] {
+    let entries = try loadEntries(of: account, context: context)
+    return entries.filter { entry in !entry.sources.contains { source in source.kind == .statement } }
+}
+
+/// Строка, присоединённая к записи, больше не кандидат для следующих строк: у записи теперь есть источник «выписка».
+private func findRowMatches(entries: [JournalEntry], candidates: [JournalEntry]) -> [MatchResult] {
+    var freeCandidates = candidates
+    var matches: [MatchResult] = []
+    for entry in entries {
+        let incoming = IncomingOperation(kind: .statement, day: entry.day, time: nil, amount: entry.amount, merchantKey: entry.merchantKey)
+        let match = findMatchingEntry(for: incoming, candidates: freeCandidates, realtimeWindowMinutes: 10, statementWindowDays: 3)
+        if let target = findAttachTarget(match) {
+            freeCandidates.removeAll { candidate in candidate === target }
+        }
+        matches.append(match)
+    }
+    return matches
+}
+
+private func findAttachTarget(_ match: MatchResult) -> JournalEntry? {
+    guard case .attach(let target) = match else { return nil }
+    return target
+}
+
+/// Источник выписки переезжает в существующую запись; сумма и баланс остаются от Apple Pay/SMS, комиссию знает только выписка.
+private func attachRows(_ plans: [RowPlan], receivedAt: Date) {
+    for plan in plans {
+        guard let target = findAttachTarget(plan.match) else { continue }
+        target.sources.append(SourceRecord(row: plan.keyedRow.row, key: plan.keyedRow.key, receivedAt: receivedAt))
+        target.feeAmount = plan.entry.feeAmount
+    }
+}
+
+private func markPossibleDuplicates(_ plans: [RowPlan]) {
+    for plan in plans {
+        guard case .possibleDuplicate(let other) = plan.match else { continue }
+        plan.entry.possibleDuplicateOf = other
+        plan.entry.isReviewed = false
+    }
 }
 
 /// Вставляет записи вместе с их источником-строкой выписки; `entries` и `rows` идут в одном порядке.

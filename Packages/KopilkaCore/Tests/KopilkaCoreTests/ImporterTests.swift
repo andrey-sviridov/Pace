@@ -292,6 +292,77 @@ import Testing
         #expect(result.addedCount == 0)
         #expect(result.alreadyKnownCount == 6)
     }
+
+    // MARK: - Склейка с Apple Pay
+
+    private func addApplePayEntry(account: Account, context: ModelContext) -> JournalEntry {
+        let entry = JournalEntry(
+            day: CalendarDay(dotted: "11.08.2026")!,
+            time: Date(timeIntervalSince1970: 1_800_000_000),
+            type: .expense,
+            amount: 1500,
+            account: account,
+            title: "Magnum",
+            merchantKey: "MAGNUM",
+            categoryId: "groceries",
+            isReviewed: true,
+            createdAt: importedAt
+        )
+        context.insert(entry)
+        entry.sources = [SourceRecord(kind: .applePay, key: "applepay-1", receivedAt: importedAt)]
+        return entry
+    }
+
+    @Test func statementRowAttachesToEarlierApplePayEntry() throws {
+        let context = try makeContext()
+        let setup = makeStatement(rows: [makeRow("01.08.2026", "Операция оплаты у коммерсанта ARBUZ", operationAmount: -700, expense: -700)])
+        _ = try importStatement(setup, mode: .initialHistory, context: context, now: importedAt)
+        let account = try #require(try context.fetch(FetchDescriptor<Account>()).first)
+        let applePay = addApplePayEntry(account: account, context: context)
+        let statement = makeStatement(rows: [makeRow("12.08.2026", "Операция оплаты у коммерсанта MAGNUM.ASF36.", operationAmount: -1500, expense: -1500)])
+
+        let result = try importStatement(statement, mode: .regular, context: context, now: importedAt)
+
+        #expect(result.addedCount == 0)
+        #expect(result.attachedCount == 1)
+        #expect(applePay.sources.map { source in source.kind }.sorted { first, second in first.rawValue < second.rawValue } == [.applePay, .statement])
+        #expect(try context.fetch(FetchDescriptor<JournalEntry>()).count == 2)
+    }
+
+    @Test func reimportingAttachedStatementChangesNothing() throws {
+        let context = try makeContext()
+        let setup = makeStatement(rows: [makeRow("01.08.2026", "Операция оплаты у коммерсанта ARBUZ", operationAmount: -700, expense: -700)])
+        _ = try importStatement(setup, mode: .initialHistory, context: context, now: importedAt)
+        let account = try #require(try context.fetch(FetchDescriptor<Account>()).first)
+        _ = addApplePayEntry(account: account, context: context)
+        let statement = makeStatement(rows: [makeRow("12.08.2026", "Операция оплаты у коммерсанта MAGNUM.ASF36.", operationAmount: -1500, expense: -1500)])
+        _ = try importStatement(statement, mode: .regular, context: context, now: importedAt)
+
+        let result = try importStatement(statement, mode: .regular, context: context, now: importedAt)
+
+        #expect(result.addedCount == 0)
+        #expect(result.attachedCount == 0)
+        #expect(result.alreadyKnownCount == 1)
+        #expect(try context.fetch(FetchDescriptor<JournalEntry>()).count == 2)
+        #expect(try context.fetch(FetchDescriptor<SourceRecord>()).count == 3)
+    }
+
+    @Test func otherMerchantWithSameAmountMarksPossibleDuplicate() throws {
+        let context = try makeContext()
+        let setup = makeStatement(rows: [makeRow("01.08.2026", "Операция оплаты у коммерсанта ARBUZ", operationAmount: -700, expense: -700)])
+        _ = try importStatement(setup, mode: .initialHistory, context: context, now: importedAt)
+        let account = try #require(try context.fetch(FetchDescriptor<Account>()).first)
+        let applePay = addApplePayEntry(account: account, context: context)
+        let statement = makeStatement(rows: [makeRow("12.08.2026", "Операция оплаты у коммерсанта SMALL.KASSA1", operationAmount: -1500, expense: -1500)])
+
+        let result = try importStatement(statement, mode: .regular, context: context, now: importedAt)
+
+        #expect(result.addedCount == 1)
+        #expect(result.attachedCount == 0)
+        let added = try findEntry(titled: "Small", in: context)
+        #expect(added.possibleDuplicateOf === applePay)
+        #expect(!added.isReviewed)
+    }
 }
 
 // Реальная выписка содержит личные данные и в git не попадает, поэтому без неё тест выключен.
