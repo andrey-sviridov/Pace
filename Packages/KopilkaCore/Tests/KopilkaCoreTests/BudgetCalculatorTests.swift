@@ -10,6 +10,22 @@ import Testing
         return categories
     }
 
+    @Test func incomeOnDepositIsNotBudgetIncome() {
+        let deposit = Account(kind: .deposit, title: "Депозит", number: "KZ1")
+        let card = Account(kind: .card, title: "Карта", number: "KZ2")
+        let entries = [
+            makeBudgetEntry("05.10.2026", .income, 50_000, categoryId: "incomingTransfers", account: deposit),
+            makeBudgetEntry("06.10.2026", .income, 30_000, categoryId: "incomingTransfers", account: card),
+        ]
+
+        let summary = calculateBudget(
+            period: makeOctober2026(), today: makeDay("10.10.2026"), mode: .calendarMonth,
+            entries: entries, categories: makeCategories(), salaryEvents: [], monthlySavingsGoal: 0
+        )
+
+        #expect(summary.incomeTotal == 30_000)
+    }
+
     // MARK: - Главная цифра
 
     @Test func freeToSpendFollowsSpecFormula() {

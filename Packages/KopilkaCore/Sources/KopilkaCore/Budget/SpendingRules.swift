@@ -59,6 +59,8 @@ func calculateIncomeAmount(of entry: JournalEntry, kind: CategoryKind) -> Decima
     guard entry.type == .income, kind == .income else { return 0 }
     // Проценты остаются на депозите, свободными деньгами на карте они не становятся.
     guard entry.categoryId != "depositInterest" else { return 0 }
+    // Деньги на депозите остаются на депозите: свободными они не становятся (как и проценты).
+    guard entry.account?.kind != .deposit else { return 0 }
     return entry.amount
 }
 
