@@ -52,4 +52,34 @@ import Testing
     @Test func anchorIsNotInTheFuture() {
         #expect(findRule("10.07.2026", 54_000, events: [makeEvent("15.07.2026", .advance)]) == nil)
     }
+
+    @Test func staleAdvanceDoesNotAnchorTransfer() {
+        #expect(findRule("01.08.2026", 54_000, events: [makeEvent("15.07.2026", .advance)]) == nil)
+    }
+
+    @Test func staleSalaryDoesNotAnchorTransfer() {
+        #expect(findRule("20.06.2026", 100_000, events: [makeEvent("29.05.2026", .salary)]) == nil)
+    }
+
+    @Test func latestAnchorWins() {
+        let events = [makeEvent("15.06.2026", .advance), makeEvent("15.07.2026", .advance)]
+        #expect(findRule("19.07.2026", 54_000, events: events)?.categoryId == "installments")
+    }
+
+    @Test func beforeDayBoundaryIsExclusive() {
+        #expect(findRule("01.03.2026", 400_000, events: [])?.targetAccountKind != .ownOtherCard)
+        #expect(findRule("28.02.2026", 400_000, events: [])?.targetAccountKind == .ownOtherCard)
+    }
+
+    @Test func beforeDayRuleWinsOverFamily() {
+        let rule = findRule("29.12.2025", 100_000, events: [makeEvent("29.12.2025", .salary)])
+        #expect(rule?.targetAccountKind == .ownOtherCard)
+    }
+
+    @Test func rulesAreResolvedBySortOrderNotArrayOrder() {
+        let shuffledRules = Array(rules.reversed())
+        let events = [makeEvent("29.12.2025", .salary)]
+        let rule = findAmountRule(day: CalendarDay(dotted: "29.12.2025")!, amount: 100_000, rules: shuffledRules, salaryEvents: events)
+        #expect(rule?.targetAccountKind == .ownOtherCard)
+    }
 }
