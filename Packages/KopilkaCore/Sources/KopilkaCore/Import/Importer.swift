@@ -41,15 +41,14 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
         let existingKeys = try loadSourceKeys(context: context)
         let keyedRows = makeKeyedRows(rows: statement.rows, accountNumber: statement.header.accountNumber)
         let newRows = findNewRows(keyedRows: keyedRows, existingKeys: existingKeys)
-        let depositAccount = hasDepositMoves(newRows)
-            ? try findOrCreateAccount(kind: .deposit, title: "Депозит", context: context)
-            : nil
+        let kinds = newRows.map { keyedRow in detectOperationKind(description: keyedRow.row.description) }
+        let depositAccount = try findOrCreateAccount(kind: .deposit, title: "Депозит", isNeeded: hasDepositMoves(kinds), context: context)
 
         // Проход 1: создаём все записи, чтобы правила переводов видели аванс из этого же файла (Ruling 3).
-        let newEntries = newRows.map { keyedRow in
+        let newEntries = zip(newRows, kinds).map { keyedRow, kind in
             makeEntry(
                 from: keyedRow,
-                kind: detectOperationKind(description: keyedRow.row.description),
+                kind: kind,
                 account: account,
                 depositAccount: depositAccount,
                 merchantRules: merchantRules,
@@ -65,9 +64,18 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
             advanceDayRange: 10...20,
             oneOffAboveMedianTimes: 1.5
         )
-        for entry in newEntries where isTransferToOtherCard(entry) {
-            let rule = findAmountRule(day: entry.day, amount: entry.amount, rules: amountRules, salaryEvents: salaryEvents)
-            try updateEntry(entry, byAmountRule: rule, context: context)
+        let transfers = zip(newEntries, kinds).filter { entry, kind in kind == .transferToOtherCard }.map { entry, kind in entry }
+        let transferRules = transfers.map { entry in
+            findAmountRule(day: entry.day, amount: entry.amount, rules: amountRules, salaryEvents: salaryEvents)
+        }
+        let kaspiAccount = try findOrCreateAccount(
+            kind: .ownOtherCard,
+            title: "Kaspi *3436",
+            isNeeded: transferRules.contains { rule in rule?.targetAccountKind == .ownOtherCard },
+            context: context
+        )
+        for (entry, rule) in zip(transfers, transferRules) {
+            updateEntry(entry, byAmountRule: rule, ownCardAccount: kaspiAccount)
         }
 
         try context.save()
@@ -205,10 +213,15 @@ func makeEntry(
 // MARK: - Шаги импорта
 
 /// В начальной истории неизвестный счёт создаётся, в обычном импорте — ошибка (пользователь решает, что это за счёт).
+/// Выписка депозита забирает себе «Депозит» без номера, созданный импортом карты, — иначе остаток раздвоится.
 private func findOrCreateStatementAccount(_ statement: ParsedStatement, mode: ImportMode, context: ModelContext) throws -> Account {
     let header = statement.header
     if let account = try findAccount(number: header.accountNumber, context: context) {
         return account
+    }
+    if isDepositStatement(header), let unnumberedDeposit = try findAccount(kind: .deposit, number: "", context: context) {
+        unnumberedDeposit.number = header.accountNumber
+        return unnumberedDeposit
     }
     guard mode == .initialHistory else {
         throw ImportError.unknownAccount(number: header.accountNumber)
@@ -219,7 +232,9 @@ private func findOrCreateStatementAccount(_ statement: ParsedStatement, mode: Im
 }
 
 /// Второй конец перемещения (депозит, своя Kaspi): номера в выписке карты нет, ищем по виду счёта.
-private func findOrCreateAccount(kind: AccountKind, title: String, context: ModelContext) throws -> Account {
+/// Не нужен — nil, чтобы не заводить пустой счёт, которого у пользователя нет.
+private func findOrCreateAccount(kind: AccountKind, title: String, isNeeded: Bool, context: ModelContext) throws -> Account? {
+    guard isNeeded else { return nil }
     let accounts = try context.fetch(FetchDescriptor<Account>())
     if let account = accounts.first(where: { account in account.kind == kind }) {
         return account
@@ -229,14 +244,22 @@ private func findOrCreateAccount(kind: AccountKind, title: String, context: Mode
     return account
 }
 
+private func findAccount(kind: AccountKind, number: String, context: ModelContext) throws -> Account? {
+    let accounts = try context.fetch(FetchDescriptor<Account>())
+    return accounts.first { account in account.kind == kind && account.number == number }
+}
+
+private func isDepositStatement(_ header: StatementHeader) -> Bool {
+    normalizeDescription(header.accountType).contains("ДЕПОЗИТ")
+}
+
 private func findAccount(number: String, context: ModelContext) throws -> Account? {
     let descriptor = FetchDescriptor<Account>(predicate: #Predicate { account in account.number == number })
     return try context.fetch(descriptor).first
 }
 
 private func makeAccount(header: StatementHeader, rows: [StatementRow]) -> Account {
-    let isDeposit = normalizeDescription(header.accountType).contains("ДЕПОЗИТ")
-    guard !isDeposit else {
+    guard !isDepositStatement(header) else {
         return Account(kind: .deposit, title: "Депозит", number: header.accountNumber)
     }
     let cardLastDigits = findMainCardNumber(rows: rows)?.suffix(4) ?? header.accountNumber.suffix(4)
@@ -250,11 +273,8 @@ private func findMainCardNumber(rows: [StatementRow]) -> String? {
     return countByCard.max { first, second in first.value < second.value }?.key
 }
 
-private func hasDepositMoves(_ rows: [KeyedRow]) -> Bool {
-    rows.contains { keyedRow in
-        let kind = detectOperationKind(description: keyedRow.row.description)
-        return kind == .toDeposit || kind == .fromDeposit
-    }
+private func hasDepositMoves(_ kinds: [OperationKind]) -> Bool {
+    kinds.contains { kind in kind == .toDeposit || kind == .fromDeposit }
 }
 
 /// Пустая таблица — встроенные правила без сохранения: засев базы делает начальная настройка.
@@ -296,21 +316,15 @@ private func loadEntries(of account: Account, context: ModelContext) throws -> [
     }
 }
 
-private func isTransferToOtherCard(_ entry: JournalEntry) -> Bool {
-    entry.sources.contains { source in
-        detectOperationKind(description: source.rawDescription ?? "") == .transferToOtherCard
-    }
-}
-
 /// Нет правила — перевод остаётся «Переводы людям» и ждёт разбора.
-private func updateEntry(_ entry: JournalEntry, byAmountRule rule: AmountRule?, context: ModelContext) throws {
+private func updateEntry(_ entry: JournalEntry, byAmountRule rule: AmountRule?, ownCardAccount: Account?) {
     guard let rule else { return }
 
     if rule.targetAccountKind == .ownOtherCard {
         entry.type = .transfer
         entry.categoryId = "ownTransfer"
         entry.title = "На свою карту Kaspi"
-        entry.counterAccount = try findOrCreateAccount(kind: .ownOtherCard, title: "Kaspi *3436", context: context)
+        entry.counterAccount = ownCardAccount
     } else if let categoryId = rule.categoryId {
         entry.categoryId = categoryId
     }

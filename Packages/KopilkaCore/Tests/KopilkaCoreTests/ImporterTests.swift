@@ -30,7 +30,7 @@ import Testing
     }
 
     // Итоги считаем из строк, чтобы checkTotals проходил; для проверки расхождения их подменяют.
-    private func makeStatement(rows: [StatementRow], accountNumber: String = "KZ126010002008249310", totals: StatementTotals? = nil) -> ParsedStatement {
+    private func makeStatement(rows: [StatementRow], accountNumber: String = "KZ126010002008249310", accountType: String = "Текущий счет", totals: StatementTotals? = nil) -> ParsedStatement {
         let rowTotals = StatementTotals(
             income: rows.reduce(Decimal(0)) { sum, row in sum + row.incomeAmount },
             expense: rows.reduce(Decimal(0)) { sum, row in sum + row.expenseAmount },
@@ -38,7 +38,7 @@ import Testing
         )
         let header = StatementHeader(
             accountNumber: accountNumber,
-            accountType: "Текущий счет",
+            accountType: accountType,
             periodStart: CalendarDay(dotted: "01.07.2026")!,
             periodEnd: CalendarDay(dotted: "31.07.2026")!,
             generatedOn: CalendarDay(dotted: "31.07.2026")!,
@@ -206,6 +206,26 @@ import Testing
         let accounts = try context.fetch(FetchDescriptor<Account>())
         #expect(accounts.filter { account in account.kind == .deposit }.count == 1)
         #expect(accounts.count == 2)
+    }
+
+    @Test func depositStatementAdoptsDepositCreatedByCardImport() throws {
+        let context = try makeContext()
+        _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+        let depositStatement = makeStatement(
+            rows: [makeRow("15.07.2026", "Пополнение депозита", operationAmount: 100_000, income: 100_000, card: "KZ999")],
+            accountNumber: "KZ999",
+            accountType: "Сберегательный депозит"
+        )
+
+        let result = try importStatement(depositStatement, mode: .regular, context: context, now: importedAt)
+
+        let deposits = try context.fetch(FetchDescriptor<Account>()).filter { account in account.kind == .deposit }
+        #expect(result.accountKind == .deposit)
+        #expect(result.addedCount == 1)
+        #expect(deposits.count == 1)
+        #expect(deposits.first?.number == "KZ999")
+        #expect(deposits.first?.title == "Депозит")
+        #expect(try findEntry(titled: "На депозит", in: context).counterAccount?.number == "KZ999")
     }
 
     @Test func purchaseRowWithIncomeIsRefund() throws {
