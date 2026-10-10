@@ -265,7 +265,8 @@ private func findAccount(kind: AccountKind, number: String, context: ModelContex
     return accounts.first { account in account.kind == kind && account.number == number }
 }
 
-private func isDepositStatement(_ header: StatementHeader) -> Bool {
+/// Выписка депозита или карты — по полю «Тип счёта» в шапке.
+public func isDepositStatement(_ header: StatementHeader) -> Bool {
     normalizeDescription(header.accountType).contains("ДЕПОЗИТ")
 }
 

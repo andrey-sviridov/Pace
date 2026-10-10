@@ -17,6 +17,17 @@ final class SettingsStore {
     func save() throws {
         try context.save()
     }
+
+    /// Признак ставим только вместе с успешным сохранением: иначе экран ушёл бы на вкладки, а база осталась без настройки.
+    func saveSetupFinished() throws {
+        settings.hasFinishedSetup = true
+        do {
+            try context.save()
+        } catch {
+            settings.hasFinishedSetup = false
+            throw error
+        }
+    }
 }
 
 /// Первый запуск — записи ещё нет, создаём со значениями по умолчанию и сразу сохраняем:

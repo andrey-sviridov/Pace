@@ -73,8 +73,12 @@ struct OnboardingScreen: View {
     // Встроенные правила засеваются только на «Готово»: импорт при пустых таблицах правил сам берёт стартовые.
     private func loadHistory(pdfData: Data) throws {
         let statement = try journalStore.readStatement(pdfData: pdfData)
-        _ = try journalStore.importStatement(statement, mode: .initialHistory)
-        history = LoadedHistory(header: statement.header, operationCount: statement.rows.count)
+        // Шаг 2 подставляет остаток выписки в поле карты, поэтому выписку депозита отсекаем до записи в базу.
+        guard !isDepositStatement(statement.header) else {
+            throw SetupError.historyIsNotCardStatement
+        }
+        let result = try journalStore.importStatement(statement, mode: .initialHistory)
+        history = LoadedHistory(header: statement.header, addedCount: result.addedCount, alreadyKnownCount: result.alreadyKnownCount)
         cardBalance = statement.header.availableAmount
     }
 
@@ -90,17 +94,11 @@ struct OnboardingScreen: View {
             let depositAccount = try accountStore.findOrAddDepositAccount()
             try accountStore.updateAnchor(depositAccount, balance: depositBalance, day: anchorDay)
             try rulesStore.seedBuiltInsIfMissing(kaspiOwnCardUntil: settingsStore.settings.kaspiOwnCardUntil)
-            settingsStore.settings.hasFinishedSetup = true
-            try settingsStore.save()
+            try settingsStore.saveSetupFinished()
         } catch {
             errorStore.show(error)
         }
     }
-}
-
-enum SetupError: Error {
-    /// Импорт истории только что завёл этот счёт; если его нет — база в неожиданном состоянии.
-    case statementAccountNotFound(number: String)
 }
 
 private enum OnboardingStep: Int {
@@ -111,7 +109,8 @@ private enum OnboardingStep: Int {
 
 private struct LoadedHistory {
     let header: StatementHeader
-    let operationCount: Int
+    let addedCount: Int
+    let alreadyKnownCount: Int
 }
 
 // MARK: - Шаги
@@ -129,7 +128,7 @@ private struct OnboardingStepContent: View {
         switch step {
         case .history:
             HistoryStep(
-                operationCount: history?.operationCount,
+                history: history,
                 onPickFile: onPickFile,
                 onNext: { onShowStep(.balances) }
             )
@@ -154,7 +153,7 @@ private struct OnboardingStepContent: View {
 }
 
 private struct HistoryStep: View {
-    let operationCount: Int?
+    let history: LoadedHistory?
     let onPickFile: () -> Void
     let onNext: () -> Void
 
@@ -165,12 +164,12 @@ private struct HistoryStep: View {
             title: "Загрузите историю",
             text: "Выписка Halyk в PDF за прошлые месяцы. Эти операции попадут в журнал и аналитику, но остаток не изменят."
         )
-        if let operationCount {
+        if let history {
             Card {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(theme.accent)
-                    Text("Загружено \(formatOperationCount(operationCount))")
+                    Text(makeLoadedText(history))
                         .foregroundStyle(theme.text)
                 }
                 .font(.headline)
@@ -229,7 +228,6 @@ private struct FinishStep: View {
                 SummaryRow(title: "Депозит") { MoneyText(amount: depositBalance ?? 0) }
                 if let history {
                     SummaryRow(title: "Точка отсчёта") { SummaryValue(text: formatDay(history.header.generatedOn)) }
-                    SummaryRow(title: "История") { SummaryValue(text: formatOperationCount(history.operationCount)) }
                 }
             }
         }
@@ -319,4 +317,11 @@ private struct SummaryValue: View {
 private func makeAnchorText(_ anchorDay: CalendarDay?) -> String {
     guard let anchorDay else { return "Сколько денег на счетах сейчас." }
     return "Сколько было на \(formatDay(anchorDay)) — в день формирования выписки. Для карты подставлена «Доступная сумма» из выписки."
+}
+
+/// «Добавлено 1160 операций»; при повторном выборе того же файла — «Добавлено 0 операций, уже было 1160».
+private func makeLoadedText(_ history: LoadedHistory) -> String {
+    let addedText = "Добавлено \(formatOperationCount(history.addedCount))"
+    guard history.alreadyKnownCount > 0 else { return addedText }
+    return "\(addedText), уже было \(history.alreadyKnownCount)"
 }
