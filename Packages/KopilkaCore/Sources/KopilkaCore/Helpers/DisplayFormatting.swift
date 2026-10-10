@@ -39,6 +39,14 @@ public func formatShortDay(_ day: CalendarDay) -> String {
     return "\(day.day) \(monthNames[day.month - 1])"
 }
 
+/// Подпись столбика периода: календарный месяц — «сен», зарплатный — день начала «10 сен».
+public func formatPeriodLabel(_ period: Period) -> String {
+    let isCalendarMonth = period == makeCalendarMonth(containing: period.start)
+    guard isCalendarMonth else { return formatShortDay(period.start) }
+    let monthNames = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+    return monthNames[period.start.month - 1]
+}
+
 /// «1 день», «3 дня», «11 дней».
 public func formatDayCount(_ count: Int) -> String {
     "\(count) \(choosePluralForm(count: count, one: "день", few: "дня", many: "дней"))"

@@ -2,9 +2,10 @@ import SwiftUI
 import SwiftData
 import KopilkaCore
 
-/// Куда ведут переходы с главной. Экран «Все лимиты» (задача 15) пока заглушка.
+/// Куда ведут переходы с главной и вложенных экранов.
 enum HomeDestination: Hashable {
     case limits, review
+    case categoryLimit(categoryId: String)
 }
 
 /// Главная (спека §8): сколько можно потратить до конца периода, полоса бюджета, остатки, главные лимиты.
@@ -60,7 +61,11 @@ struct HomeScreen: View {
                 case .review:
                     ReviewScreen()
                 case .limits:
-                    LimitsPlaceholderScreen(theme: theme)
+                    LimitsScreen(today: today)
+                case .categoryLimit(let categoryId):
+                    if let category = categories.first(where: { category in category.id == categoryId }) {
+                        CategoryLimitScreen(category: category, today: today)
+                    }
                 }
             }
         }
@@ -193,23 +198,5 @@ private struct HomeReviewLink: View {
             }
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// Заглушка «Все лимиты»: её заменит задача 15.
-private struct LimitsPlaceholderScreen: View {
-    let theme: Theme
-
-    var body: some View {
-        ScrollView {
-            Card {
-                Text("Здесь будут все лимиты и их настройка.")
-                    .foregroundStyle(theme.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding()
-        }
-        .background(theme.background)
-        .navigationTitle("Лимиты")
     }
 }

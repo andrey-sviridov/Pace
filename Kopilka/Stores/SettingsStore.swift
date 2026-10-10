@@ -30,6 +30,17 @@ final class SettingsStore {
         }
     }
 
+    func updateSavingsGoal(_ monthlyAmount: Decimal) throws {
+        let previousGoal = settings.monthlySavingsGoal
+        settings.monthlySavingsGoal = monthlyAmount
+        do {
+            try context.save()
+        } catch {
+            settings.monthlySavingsGoal = previousGoal
+            throw error
+        }
+    }
+
     /// Признак ставим только вместе с успешным сохранением: иначе экран ушёл бы на вкладки, а база осталась без настройки.
     func saveSetupFinished() throws {
         settings.hasFinishedSetup = true

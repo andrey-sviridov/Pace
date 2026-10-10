@@ -39,4 +39,63 @@ final class RulesStore {
 
         try context.save()
     }
+
+    // MARK: - Лимиты и ожидаемые суммы
+    // Не сохранилось — возвращаем прежнее значение, иначе экран показывал бы то, чего нет в базе.
+
+    func updateMonthlyLimit(_ amount: Decimal, of category: SpendingCategory) throws {
+        let previousLimit = category.monthlyLimit
+        category.monthlyLimit = amount
+        do {
+            try context.save()
+        } catch {
+            category.monthlyLimit = previousLimit
+            throw error
+        }
+    }
+
+    func removeMonthlyLimit(of category: SpendingCategory) throws {
+        let previousLimit = category.monthlyLimit
+        category.monthlyLimit = nil
+        do {
+            try context.save()
+        } catch {
+            category.monthlyLimit = previousLimit
+            throw error
+        }
+    }
+
+    func updateExpectedAmount(_ amount: Decimal, of category: SpendingCategory) throws {
+        let previousAmount = category.expectedMonthlyAmount
+        category.expectedMonthlyAmount = amount
+        do {
+            try context.save()
+        } catch {
+            category.expectedMonthlyAmount = previousAmount
+            throw error
+        }
+    }
+
+    /// Без заданной суммы план обязательной считается по медиане последних месяцев.
+    func resetExpectedAmount(of category: SpendingCategory) throws {
+        let previousAmount = category.expectedMonthlyAmount
+        category.expectedMonthlyAmount = nil
+        do {
+            try context.save()
+        } catch {
+            category.expectedMonthlyAmount = previousAmount
+            throw error
+        }
+    }
+
+    func updateWarnPercent(_ percent: Int, of category: SpendingCategory) throws {
+        let previousPercent = category.warnAtPercent
+        category.warnAtPercent = percent
+        do {
+            try context.save()
+        } catch {
+            category.warnAtPercent = previousPercent
+            throw error
+        }
+    }
 }

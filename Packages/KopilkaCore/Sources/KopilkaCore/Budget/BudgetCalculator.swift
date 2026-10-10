@@ -129,7 +129,7 @@ public func calculateTypicalMonthlyAmount(categoryId: String, entries: [JournalE
 }
 
 /// Полные календарные месяцы, закончившиеся не позже `day`, от ближайшего к дальнему.
-private func makeFullMonths(before day: CalendarDay, monthCount: Int) -> [Period] {
+func makeFullMonths(before day: CalendarDay, monthCount: Int) -> [Period] {
     var months: [Period] = []
     var nextMonthStart = makeCalendarMonth(containing: day).start
     for _ in 0..<monthCount {
