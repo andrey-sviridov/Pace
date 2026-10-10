@@ -27,6 +27,8 @@ func makeErrorMessage(_ error: Error) -> String {
         return makeTotalsMismatchMessage(expected: expected, actual: actual)
     case ImportError.unknownAccount(let number):
         return "Выписка по счёту \(number), которого нет в приложении. Ничего не записано."
+    case SetupError.statementAccountNotFound(let number):
+        return "Не нашёлся счёт \(number) из загруженной выписки. Загрузите выписку ещё раз."
     case ParsingError.badAmount(let text):
         return "В выписке не удалось прочитать сумму «\(text)». Ничего не записано."
     case ParsingError.badDate(let text):

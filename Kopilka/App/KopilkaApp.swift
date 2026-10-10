@@ -15,6 +15,8 @@ struct KopilkaApp: App {
                     .environment(stores.errorStore)
                     .environment(stores.settingsStore)
                     .environment(stores.journalStore)
+                    .environment(stores.accountStore)
+                    .environment(stores.rulesStore)
                     .modelContainer(stores.container)
             case .failed(let message):
                 StartupErrorScreen(message: message)
@@ -34,6 +36,8 @@ struct AppStores {
     let errorStore: ErrorStore
     let settingsStore: SettingsStore
     let journalStore: JournalStore
+    let accountStore: AccountStore
+    let rulesStore: RulesStore
 }
 
 func makeAppStartup() -> AppStartup {
@@ -44,7 +48,9 @@ func makeAppStartup() -> AppStartup {
             container: container,
             errorStore: ErrorStore(),
             settingsStore: try SettingsStore(context: context),
-            journalStore: JournalStore(context: context)
+            journalStore: JournalStore(context: context),
+            accountStore: AccountStore(context: context),
+            rulesStore: RulesStore(context: context)
         )
         return .ready(stores)
     } catch {

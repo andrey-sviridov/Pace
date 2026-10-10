@@ -15,9 +15,13 @@ final class JournalStore {
 
     // MARK: - Импорт
 
-    func importStatement(data: Data, mode: ImportMode) throws -> ImportResult {
-        let lines = try readTextLines(pdfData: data)
-        let statement = try readStatement(lines: lines)
+    /// Разбор PDF без записи в базу: начальной настройке нужна шапка (остаток, дата формирования).
+    func readStatement(pdfData: Data) throws -> ParsedStatement {
+        let lines = try readTextLines(pdfData: pdfData)
+        return try KopilkaCore.readStatement(lines: lines)
+    }
+
+    func importStatement(_ statement: ParsedStatement, mode: ImportMode) throws -> ImportResult {
         // При ошибке импорт откатывает контекст целиком, и несохранённые правки пропали бы вместе с ним.
         try context.save()
         return try KopilkaCore.importStatement(statement, mode: mode, context: context, now: Date())
