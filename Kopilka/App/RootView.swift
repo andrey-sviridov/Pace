@@ -41,6 +41,8 @@ struct RootView: View {
             .onOpenURL { url in
                 openSharedFile(url: url)
             }
+            // Кнопка «Загрузить выписку» в настройках идёт тем же путём, что и «Поделиться».
+            .environment(\.importStatementFile, openSharedFile)
             .confirmationDialog(
                 "Неизвестный счёт \(unknownAccountImport?.accountNumber ?? "")",
                 isPresented: makeIsShownBinding($unknownAccountImport),

@@ -12,6 +12,15 @@ final class SettingsStore {
     init(context: ModelContext) throws {
         self.context = context
         self.settings = try findOrCreateSettings(context: context)
+        try migrateHalfMonthMode()
+    }
+
+    /// Раньше «Полмесяца» выбирался отдельно; теперь это «С зарплаты» + «Получаю аванс».
+    private func migrateHalfMonthMode() throws {
+        guard settings.periodMode == .halfMonth else { return }
+        settings.periodMode = .salaryMonth
+        settings.hasAdvance = true
+        try context.save()
     }
 
     func save() throws {

@@ -20,6 +20,14 @@ public func makeDate(day: CalendarDay, calendar: Calendar) -> Date {
     return date
 }
 
+/// «14:32» — время операции из SMS или Apple Pay в часовом поясе пользователя.
+public func formatOperationTime(_ time: Date, calendar: Calendar) -> String {
+    let components = calendar.dateComponents([.hour, .minute], from: time)
+    let hour = components.hour ?? 0
+    let minute = components.minute ?? 0
+    return String(format: "%02d:%02d", hour, minute)
+}
+
 /// «1 234 567 ₸» или «6 933,41 ₸»: копейки показываем, только если они есть, и тогда всегда двумя цифрами.
 public func formatTenge(_ amount: Decimal) -> String {
     let fractionDigits = roundAmount(amount, fractionDigits: 0) == amount ? 0 : 2

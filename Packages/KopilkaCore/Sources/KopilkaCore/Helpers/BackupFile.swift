@@ -63,6 +63,9 @@ public struct SettingsBackup: Codable {
     public var shouldShowRemainingAfterPayment: Bool
     public var monthlySavingsGoal: Decimal
     public var hasFinishedSetup: Bool
+    // Необязательные: в копиях, сделанных до появления этих настроек, их нет.
+    public var hasAdvance: Bool?
+    public var shouldShowOperationTime: Bool?
 }
 
 public struct EntryBackup: Codable {

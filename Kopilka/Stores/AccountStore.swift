@@ -45,4 +45,9 @@ final class AccountStore {
         context.insert(entry)
         try context.save()
     }
+
+    func updateTitle(_ account: Account, title: String) throws {
+        account.title = title
+        try context.save()
+    }
 }

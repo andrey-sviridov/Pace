@@ -13,6 +13,11 @@ public final class AppSettings {
     public var shouldShowRemainingAfterPayment: Bool
     public var monthlySavingsGoal: Decimal
     public var hasFinishedSetup: Bool
+    // Значения по умолчанию прямо в объявлении: так SwiftData сам добавит поля в уже существующую базу.
+    /// Есть аванс — главная считает «до аванса» (или до зарплаты, что ближе), а месяц показывает строкой ниже.
+    public var hasAdvance: Bool = true
+    /// Время операции в «Проверьте новое» и журнале (оно есть только у SMS и Apple Pay).
+    public var shouldShowOperationTime: Bool = true
 
     public init(
         theme: ThemeName = .light,
@@ -23,7 +28,9 @@ public final class AppSettings {
         isSmsEnabled: Bool = false,
         shouldShowRemainingAfterPayment: Bool = false,
         monthlySavingsGoal: Decimal = 0,
-        hasFinishedSetup: Bool = false
+        hasFinishedSetup: Bool = false,
+        hasAdvance: Bool = true,
+        shouldShowOperationTime: Bool = true
     ) {
         self.theme = theme
         self.periodMode = periodMode
@@ -34,5 +41,7 @@ public final class AppSettings {
         self.shouldShowRemainingAfterPayment = shouldShowRemainingAfterPayment
         self.monthlySavingsGoal = monthlySavingsGoal
         self.hasFinishedSetup = hasFinishedSetup
+        self.hasAdvance = hasAdvance
+        self.shouldShowOperationTime = shouldShowOperationTime
     }
 }

@@ -121,7 +121,7 @@ private struct AmountRuleScreen: View {
     var body: some View {
         Form {
             if rule.beforeDay != nil {
-                Text("Все переводы на другую карту раньше этой даты считаются переводами на вашу Kaspi. Дата меняется в настройках, раздел «Импорт».")
+                Text("Все переводы на другую карту раньше этой даты считаются переводами на вашу Kaspi. Дата меняется в «Мои счета» → ваша Kaspi.")
             } else {
                 Section("Сумма перевода") {
                     MoneyField(title: "От", amount: $minAmount)

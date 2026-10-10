@@ -15,36 +15,56 @@ struct HomeScreen: View {
     @Binding var path: [HomeDestination]
 
     @Environment(SettingsStore.self) private var settingsStore
-    @Environment(ErrorStore.self) private var errorStore
     @Environment(\.theme) private var theme
 
     @Query private var entries: [JournalEntry]
     @Query(sort: \SpendingCategory.sortOrder) private var categories: [SpendingCategory]
     @Query private var accounts: [Account]
 
+    /// Тап по карточке «Карта» или «Депозит» — сверка остатка этого счёта.
+    @State private var reconciledAccount: Account?
+
     var body: some View {
         let settings = settingsStore.settings
         // Те же границы аванса и разовой премии, что у импорта: иначе периоды разошлись бы с правилами переводов.
         let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+        // С авансом главная цифра — до ближайшего поступления (аванса или зарплаты), а месяц — строкой ниже.
+        let heroMode: PeriodMode = settings.hasAdvance ? .halfMonth : settings.periodMode
         let numbers = calculateHomeNumbers(
             today: today,
-            mode: settings.periodMode,
+            mode: heroMode,
             monthlySavingsGoal: settings.monthlySavingsGoal,
             entries: entries,
             categories: categories,
             accounts: accounts,
             salaryEvents: salaryEvents
         )
+        let monthBudget = settings.hasAdvance
+            ? calculateHomeNumbers(
+                today: today,
+                mode: settings.periodMode,
+                monthlySavingsGoal: settings.monthlySavingsGoal,
+                entries: entries,
+                categories: categories,
+                accounts: accounts,
+                salaryEvents: salaryEvents
+            ).budget
+            : nil
 
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    PeriodPicker(selection: Binding(get: { settings.periodMode }, set: updatePeriodMode))
-                    HomeHero(numbers: numbers, theme: theme)
+                    HomeHero(numbers: numbers, monthBudget: monthBudget, theme: theme)
                     Card {
                         BudgetBar(summary: numbers.budget, theme: theme)
                     }
-                    HomeBalances(cardBalance: numbers.cardBalance, depositBalance: numbers.depositBalance, theme: theme)
+                    HomeBalances(
+                        cardBalance: numbers.cardBalance,
+                        depositBalance: numbers.depositBalance,
+                        theme: theme,
+                        onTapCard: { reconciledAccount = accounts.first { account in account.kind == .card } },
+                        onTapDeposit: { reconciledAccount = accounts.first { account in account.kind == .deposit } }
+                    )
                     // Четыре самых потраченных лимита: остальные — на экране «Все лимиты».
                     HomeLimits(statuses: Array(numbers.limitStatuses.prefix(4)), theme: theme)
                     if numbers.unreviewedCount > 0 {
@@ -56,6 +76,11 @@ struct HomeScreen: View {
             .background(theme.background)
             .navigationTitle("Главная")
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(item: $reconciledAccount) { account in
+                NavigationStack {
+                    ReconcileScreen(account: account, today: today)
+                }
+            }
             .navigationDestination(for: HomeDestination.self) { destination in
                 switch destination {
                 case .review:
@@ -70,20 +95,14 @@ struct HomeScreen: View {
             }
         }
     }
-
-    private func updatePeriodMode(_ mode: PeriodMode) {
-        do {
-            try settingsStore.updatePeriodMode(mode)
-        } catch {
-            errorStore.show(error)
-        }
-    }
 }
 
 // MARK: - Части экрана
 
 private struct HomeHero: View {
     let numbers: HomeNumbers
+    /// Есть только когда получаете аванс: сколько свободно за весь месяц.
+    let monthBudget: BudgetSummary?
     let theme: Theme
 
     var body: some View {
@@ -99,6 +118,11 @@ private struct HomeHero: View {
             Text(makeHeroCaption(numbers: numbers))
                 .font(.footnote)
                 .foregroundStyle(theme.secondaryText)
+            if let monthBudget {
+                Text(makeMonthFreeText(budget: monthBudget))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(monthBudget.freeToSpend < 0 ? theme.over : theme.text)
+            }
         }
         .padding(.horizontal, 4)
     }
@@ -108,12 +132,19 @@ private struct HomeBalances: View {
     let cardBalance: Decimal
     let depositBalance: Decimal
     let theme: Theme
+    let onTapCard: () -> Void
+    let onTapDeposit: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            BalanceCard(title: "Карта", amount: cardBalance, theme: theme)
-            BalanceCard(title: "Депозит", amount: depositBalance, theme: theme)
+            Button(action: onTapCard) {
+                BalanceCard(title: "Карта", amount: cardBalance, theme: theme)
+            }
+            Button(action: onTapDeposit) {
+                BalanceCard(title: "Депозит", amount: depositBalance, theme: theme)
+            }
         }
+        .buttonStyle(.plain)
     }
 }
 

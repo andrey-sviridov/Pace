@@ -7,6 +7,7 @@ import KopilkaCore
 struct ReviewScreen: View {
     @Environment(JournalStore.self) private var journalStore
     @Environment(ErrorStore.self) private var errorStore
+    @Environment(SettingsStore.self) private var settingsStore
     @Environment(\.theme) private var theme
 
     // Предикат отсекает проверенные в базе; окончательное правило — isAwaitingReview из ядра.
@@ -31,6 +32,7 @@ struct ReviewScreen: View {
                         ReviewRow(
                             entry: entry,
                             categoryName: makeCategoryName(categoryId: entry.categoryId, namesById: categoryNamesById),
+                            isTimeShown: settingsStore.settings.shouldShowOperationTime,
                             theme: theme,
                             onEditTitle: { showTitleEditor(entry) },
                             onPickCategory: { categoryEntry = entry },
@@ -138,6 +140,7 @@ struct ReviewScreen: View {
 private struct ReviewRow: View {
     let entry: JournalEntry
     let categoryName: String
+    let isTimeShown: Bool
     let theme: Theme
     let onEditTitle: () -> Void
     let onPickCategory: () -> Void
@@ -157,7 +160,7 @@ private struct ReviewRow: View {
                     }
                 }
                 Spacer()
-                EntryAmountText(amount: entry.amount, type: entry.type)
+                EntryAmountAndTime(entry: entry, isTimeShown: isTimeShown, theme: theme)
             }
             VStack(alignment: .leading, spacing: 6) {
                 Button(action: onPickCategory) {

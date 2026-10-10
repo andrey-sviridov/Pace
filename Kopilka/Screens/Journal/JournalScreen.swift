@@ -5,6 +5,7 @@ import KopilkaCore
 /// Журнал (спека §8): все записи по дням, поиск по названию, фильтр по категории, счёту и источнику.
 /// Склеенные записи (`mergedInto`) не показываем — они только хранят ключи источников.
 struct JournalScreen: View {
+    @Environment(SettingsStore.self) private var settingsStore
     @Environment(\.theme) private var theme
 
     @Query private var entries: [JournalEntry]
@@ -29,6 +30,7 @@ struct JournalScreen: View {
                                 JournalRow(
                                     entry: entry,
                                     categoryName: makeCategoryName(categoryId: entry.categoryId, namesById: categoryNamesById),
+                                    isTimeShown: settingsStore.settings.shouldShowOperationTime,
                                     theme: theme
                                 )
                             }
@@ -99,6 +101,7 @@ private func isMatching(_ entry: JournalEntry, filter: JournalFilter) -> Bool {
 private struct JournalRow: View {
     let entry: JournalEntry
     let categoryName: String
+    let isTimeShown: Bool
     let theme: Theme
 
     var body: some View {
@@ -112,7 +115,7 @@ private struct JournalRow: View {
                     .foregroundStyle(entry.categoryId == nil ? theme.warning : theme.secondaryText)
             }
             Spacer()
-            EntryAmountText(amount: entry.amount, type: entry.type)
+            EntryAmountAndTime(entry: entry, isTimeShown: isTimeShown, theme: theme)
         }
     }
 }

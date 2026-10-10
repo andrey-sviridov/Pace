@@ -77,6 +77,13 @@ public func makeHeroAmount(freeToSpend: Decimal) -> Decimal {
     return roundUpToWholeTenge(-freeToSpend)
 }
 
+/// Строка под главной цифрой, когда есть аванс: сколько свободно за весь месяц.
+public func makeMonthFreeText(budget: BudgetSummary) -> String {
+    let amountText = formatTenge(makeHeroAmount(freeToSpend: budget.freeToSpend))
+    guard budget.freeToSpend >= 0 else { return "за месяц: перерасход \(amountText)" }
+    return "за месяц: \(amountText)"
+}
+
 /// «зарплата ~15 окт · 6 дней · ≈31 000 ₸ в день»; при перерасходе без «в день».
 public func makeHeroCaption(numbers: HomeNumbers) -> String {
     let endText = makePeriodEndText(period: numbers.period, periodEndKind: numbers.periodEndKind)

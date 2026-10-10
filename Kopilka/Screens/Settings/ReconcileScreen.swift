@@ -5,6 +5,7 @@ import KopilkaCore
 /// «Сверить остаток» (спека §5.9): ввели, что показывает Homebank, — разница записывается корректировкой.
 /// Плюс по депозиту — «Проценты по депозиту». В траты и лимиты корректировка не идёт.
 struct ReconcileScreen: View {
+    let account: Account
     let today: CalendarDay
 
     @Environment(AccountStore.self) private var accountStore
@@ -12,43 +13,40 @@ struct ReconcileScreen: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
-    @Query private var accounts: [Account]
     @Query(filter: #Predicate<JournalEntry> { entry in entry.mergedInto == nil }) private var entries: [JournalEntry]
 
-    @State private var selectedAccountIndex = 0
     @State private var actualBalance: Decimal?
     @State private var resultText: String?
 
     var body: some View {
-        let ownAccounts = accounts.filter { account in account.kind == .card || account.kind == .deposit }
+        let currentBalance = calculateBalance(account: account, entries: entries)
 
         Form {
-            if ownAccounts.isEmpty {
-                Text("Счетов пока нет — сначала загрузите выписку.")
-            } else {
-                let account = ownAccounts[min(selectedAccountIndex, ownAccounts.count - 1)]
-                let currentBalance = calculateBalance(account: account, entries: entries)
-
-                Picker("Счёт", selection: $selectedAccountIndex) {
-                    ForEach(ownAccounts.indices, id: \.self) { index in
-                        Text(ownAccounts[index].title).tag(index)
-                    }
-                }
+            Section {
                 LabeledContent("По приложению", value: formatTenge(currentBalance))
                 MoneyField(title: "Сейчас в Homebank", amount: $actualBalance)
-                Button("Сверить") { reconcile(account: account, currentBalance: currentBalance) }
-                    .disabled(actualBalance == nil)
-                if let resultText {
-                    Text(resultText).foregroundStyle(theme.secondaryText)
-                }
+            } footer: {
+                Text(account.kind == .deposit
+                     ? "Если в Homebank больше — разница запишется как проценты по депозиту."
+                     : "Разница запишется корректировкой и не попадёт в траты и лимиты.")
+            }
+            Button("Сверить") { reconcile(currentBalance: currentBalance) }
+                .disabled(actualBalance == nil)
+            if let resultText {
+                Text(resultText).foregroundStyle(theme.secondaryText)
             }
         }
         .scrollContentBackground(.hidden)
         .background(theme.background)
-        .navigationTitle("Сверить остаток")
+        .navigationTitle(account.title)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Закрыть") { dismiss() }
+            }
+        }
     }
 
-    private func reconcile(account: Account, currentBalance: Decimal) {
+    private func reconcile(currentBalance: Decimal) {
         guard let actualBalance else { return }
         guard let adjustment = makeAdjustment(account: account, actualBalance: actualBalance, currentBalance: currentBalance, day: today) else {
             resultText = "Остаток совпадает, ничего записывать не нужно."

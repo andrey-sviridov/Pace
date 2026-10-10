@@ -164,7 +164,8 @@ private func makeSettingsBackup(_ settings: AppSettings) -> SettingsBackup {
         theme: settings.theme, periodMode: settings.periodMode, employerName: settings.employerName,
         kaspiOwnCardUntil: settings.kaspiOwnCardUntil, isApplePayEnabled: settings.isApplePayEnabled,
         isSmsEnabled: settings.isSmsEnabled, shouldShowRemainingAfterPayment: settings.shouldShowRemainingAfterPayment,
-        monthlySavingsGoal: settings.monthlySavingsGoal, hasFinishedSetup: settings.hasFinishedSetup
+        monthlySavingsGoal: settings.monthlySavingsGoal, hasFinishedSetup: settings.hasFinishedSetup,
+        hasAdvance: settings.hasAdvance, shouldShowOperationTime: settings.shouldShowOperationTime
     )
 }
 
@@ -218,7 +219,8 @@ private func makeSettings(_ backup: SettingsBackup) -> AppSettings {
         theme: backup.theme, periodMode: backup.periodMode, employerName: backup.employerName,
         kaspiOwnCardUntil: backup.kaspiOwnCardUntil, isApplePayEnabled: backup.isApplePayEnabled,
         isSmsEnabled: backup.isSmsEnabled, shouldShowRemainingAfterPayment: backup.shouldShowRemainingAfterPayment,
-        monthlySavingsGoal: backup.monthlySavingsGoal, hasFinishedSetup: backup.hasFinishedSetup
+        monthlySavingsGoal: backup.monthlySavingsGoal, hasFinishedSetup: backup.hasFinishedSetup,
+        hasAdvance: backup.hasAdvance ?? true, shouldShowOperationTime: backup.shouldShowOperationTime ?? true
     )
 }
 

@@ -45,7 +45,7 @@ extension Theme {
         normal: Color(hex: 0x2A78D6),
         warning: Color(hex: 0xEDA100),
         over: Color(hex: 0xE34948),
-        heroFont: .system(size: 32, weight: .semibold),
+        heroFont: .system(size: 28, weight: .semibold),
         cornerRadius: 14
     )
 
@@ -60,7 +60,7 @@ extension Theme {
         normal: Color(hex: 0x3987E5),
         warning: Color(hex: 0xC98500),
         over: Color(hex: 0xE66767),
-        heroFont: .system(size: 32, weight: .semibold),
+        heroFont: .system(size: 28, weight: .semibold),
         cornerRadius: 14
     )
 
@@ -75,7 +75,7 @@ extension Theme {
         normal: Color(hex: 0x1BAF7A),
         warning: Color(hex: 0xEDA100),
         over: Color(hex: 0xE66767),
-        heroFont: .system(size: 32, weight: .semibold),
+        heroFont: .system(size: 28, weight: .semibold),
         cornerRadius: 16
     )
 
@@ -90,7 +90,7 @@ extension Theme {
         normal: Color(hex: 0x3F6B4E),
         warning: Color(hex: 0xB7791F),
         over: Color(hex: 0xB4472F),
-        heroFont: .system(size: 32, weight: .regular, design: .serif),
+        heroFont: .system(size: 28, weight: .regular, design: .serif),
         cornerRadius: 10
     )
 
@@ -105,7 +105,7 @@ extension Theme {
         normal: Color(hex: 0x7FA88A),
         warning: Color(hex: 0xD69A3A),
         over: Color(hex: 0xD2694F),
-        heroFont: .system(size: 32, weight: .regular, design: .serif),
+        heroFont: .system(size: 28, weight: .regular, design: .serif),
         cornerRadius: 10
     )
 }

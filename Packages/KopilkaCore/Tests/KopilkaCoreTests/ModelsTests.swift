@@ -52,5 +52,7 @@ import Testing
         #expect(!settings.isApplePayEnabled && !settings.isSmsEnabled)
         #expect(settings.monthlySavingsGoal == 0)
         #expect(!settings.hasFinishedSetup)
+        #expect(settings.hasAdvance)
+        #expect(settings.shouldShowOperationTime)
     }
 }
