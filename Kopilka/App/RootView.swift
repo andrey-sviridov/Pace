@@ -17,12 +17,20 @@ struct RootView: View {
     /// Файл, пришедший через «Поделиться» до конца настройки: его забирает экран настройки.
     @State private var setupPdfData: Data?
     @State private var unknownAccountImport: UnknownAccountImport?
+    @State private var selectedTab = MainTab.home
+    @State private var homePath: [HomeDestination] = []
 
     var body: some View {
         @Bindable var errorStore = errorStore
         let themeName = settingsStore.settings.theme
 
-        RootContent(hasFinishedSetup: settingsStore.settings.hasFinishedSetup, today: today, setupPdfData: $setupPdfData)
+        RootContent(
+            hasFinishedSetup: settingsStore.settings.hasFinishedSetup,
+            today: today,
+            setupPdfData: $setupPdfData,
+            selectedTab: $selectedTab,
+            homePath: $homePath
+        )
             .environment(\.theme, Theme.make(themeName, colorScheme: colorScheme))
             // Тема B тёмная всегда, поэтому и системные элементы (вкладки, окна) переводим в тёмный режим.
             .preferredColorScheme(themeName == .dark ? .dark : nil)
@@ -47,7 +55,7 @@ struct RootView: View {
                 Text("Такого счёта ещё нет в приложении. Добавить его и загрузить выписку?")
             }
             .sheet(isPresented: makeIsShownBinding($importResult)) {
-                ImportResultSheet(result: importResult, onReview: closeImportResult)
+                ImportResultSheet(result: importResult, onReview: openReview)
                     .environment(\.theme, Theme.make(themeName, colorScheme: colorScheme))
             }
             .alert("Не получилось", isPresented: makeIsShownBinding($errorStore.currentMessage)) {
@@ -122,9 +130,11 @@ struct RootView: View {
         }
     }
 
-    // Переход в «Проверьте новое» появится вместе с этим экраном (задача 14), пока просто закрываем итог.
-    private func closeImportResult() {
+    /// «Проверить» в итоге импорта: главная, поверх неё «Проверьте новое».
+    private func openReview() {
         importResult = nil
+        selectedTab = .home
+        homePath = [.review]
     }
 }
 
@@ -133,10 +143,12 @@ private struct RootContent: View {
     let hasFinishedSetup: Bool
     let today: CalendarDay
     @Binding var setupPdfData: Data?
+    @Binding var selectedTab: MainTab
+    @Binding var homePath: [HomeDestination]
 
     var body: some View {
         if hasFinishedSetup {
-            MainTabView(today: today)
+            MainTabView(today: today, selectedTab: $selectedTab, homePath: $homePath)
         } else {
             OnboardingScreen(sharedPdfData: $setupPdfData)
         }

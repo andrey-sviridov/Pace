@@ -20,3 +20,17 @@ func formatOperationCount(_ count: Int) -> String {
         return "\(count) операций"
     }
 }
+
+/// «Выписка», «Apple Pay», «SMS», «Вручную».
+func makeSourceKindTitle(_ kind: SourceKind) -> String {
+    switch kind {
+    case .statement:
+        return "Выписка"
+    case .applePay:
+        return "Apple Pay"
+    case .sms:
+        return "SMS"
+    case .manual:
+        return "Вручную"
+    }
+}

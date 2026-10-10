@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import KopilkaCore
 
-/// Куда ведут переходы с главной. Экраны «Все лимиты» (задача 15) и «Проверьте новое» (задача 14) пока заглушки.
+/// Куда ведут переходы с главной. Экран «Все лимиты» (задача 15) пока заглушка.
 enum HomeDestination: Hashable {
     case limits, review
 }
@@ -11,6 +11,7 @@ enum HomeDestination: Hashable {
 /// Списки — из @Query, поэтому после импорта экран пересчитывается сам.
 struct HomeScreen: View {
     let today: CalendarDay
+    @Binding var path: [HomeDestination]
 
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(ErrorStore.self) private var errorStore
@@ -34,7 +35,7 @@ struct HomeScreen: View {
             salaryEvents: salaryEvents
         )
 
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     PeriodPicker(selection: Binding(get: { settings.periodMode }, set: updatePeriodMode))
@@ -55,7 +56,12 @@ struct HomeScreen: View {
             .navigationTitle("Главная")
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: HomeDestination.self) { destination in
-                HomeDestinationScreen(destination: destination, theme: theme)
+                switch destination {
+                case .review:
+                    ReviewScreen()
+                case .limits:
+                    LimitsPlaceholderScreen(theme: theme)
+                }
             }
         }
     }
@@ -190,23 +196,20 @@ private struct HomeReviewLink: View {
     }
 }
 
-/// Заглушки экранов-переходов: их заменят задачи 14 и 15.
-private struct HomeDestinationScreen: View {
-    let destination: HomeDestination
+/// Заглушка «Все лимиты»: её заменит задача 15.
+private struct LimitsPlaceholderScreen: View {
     let theme: Theme
 
     var body: some View {
-        let title = destination == .limits ? "Лимиты" : "Проверьте новое"
-        let text = destination == .limits ? "Здесь будут все лимиты и их настройка." : "Здесь будут новые операции на проверку."
         ScrollView {
             Card {
-                Text(text)
+                Text("Здесь будут все лимиты и их настройка.")
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding()
         }
         .background(theme.background)
-        .navigationTitle(title)
+        .navigationTitle("Лимиты")
     }
 }

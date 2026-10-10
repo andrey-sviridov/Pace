@@ -53,6 +53,12 @@ final class JournalStore {
         try context.save()
     }
 
+    /// Заметка — только для пользователя, на правила продавца не влияет.
+    func updateNote(_ entry: JournalEntry, note: String) throws {
+        entry.note = note
+        try context.save()
+    }
+
     /// Правило пользователя для продавца: следующие операции у него получат ту же категорию и название.
     /// У переводов продавца нет (пустой ключ) — правило не создаём, возвращаем nil.
     func saveMerchantRule(merchantKey: String, categoryId: String, title: String?) throws -> MerchantRule? {
@@ -114,10 +120,4 @@ final class JournalStore {
         context.insert(rule)
         return rule
     }
-}
-
-/// Новые дни сверху; внутри дня — в порядке добавления, сначала последние.
-private func isShownEarlier(_ first: JournalEntry, than second: JournalEntry) -> Bool {
-    guard first.day == second.day else { return first.day > second.day }
-    return first.createdAt > second.createdAt
 }
