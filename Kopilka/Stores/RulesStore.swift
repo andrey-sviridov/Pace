@@ -108,22 +108,44 @@ final class RulesStore {
         try context.save()
     }
 
-    /// Удалять можно только свои правила: встроенное всё равно вернулось бы при следующем засеве.
+    /// Встроенные тоже можно удалять: засев идёт только при начальной настройке, поэтому правило
+    /// вернётся лишь после «Начать заново». Уже размеченные записи удаление не трогает.
     func deleteMerchantRule(_ rule: MerchantRule) throws {
-        guard !rule.isBuiltIn else { return }
         context.delete(rule)
         try context.save()
     }
 
-    func updateAmountRange(_ rule: AmountRule, minAmount: Decimal, maxAmount: Decimal) throws {
-        rule.minAmount = minAmount
-        rule.maxAmount = maxAmount
+    // MARK: Правила сумм
+
+    /// Новое правило встаёт в конец: при совпадении нескольких правил срабатывает первое по порядку.
+    func addAmountRule(_ draft: AmountRuleDraft) throws {
+        let rules = try context.fetch(FetchDescriptor<AmountRule>())
+        let lastSortOrder = rules.map { rule in rule.sortOrder }.max() ?? 0
+        let rule = AmountRule(minAmount: draft.minAmount, maxAmount: draft.maxAmount, sortOrder: lastSortOrder + 1)
+        applyDraft(draft, to: rule)
+        context.insert(rule)
         try context.save()
     }
 
-    func updateWindowDays(_ rule: AmountRule, windowDays: Int) throws {
-        rule.windowDays = windowDays
+    func updateAmountRule(_ rule: AmountRule, with draft: AmountRuleDraft) throws {
+        applyDraft(draft, to: rule)
         try context.save()
+    }
+
+    func deleteAmountRule(_ rule: AmountRule) throws {
+        context.delete(rule)
+        try context.save()
+    }
+
+    /// «Перевод на свою карту» — не категория, а счёт: импорт тогда делает из перевода перемещение.
+    private func applyDraft(_ draft: AmountRuleDraft, to rule: AmountRule) {
+        rule.minAmount = draft.minAmount
+        rule.maxAmount = draft.maxAmount
+        rule.afterEvent = draft.afterEvent
+        rule.windowDays = draft.windowDays
+        let isOwnCardTransfer = draft.categoryId == "ownTransfer"
+        rule.categoryId = isOwnCardTransfer ? nil : draft.categoryId
+        rule.targetAccountKind = isOwnCardTransfer ? .ownOtherCard : nil
     }
 
     /// Дата «переводы до … — на свою Kaspi» живёт в двух местах: в настройках и в правиле сумм с beforeDay.
@@ -136,4 +158,13 @@ final class RulesStore {
         }
         try context.save()
     }
+}
+
+/// То, что пользователь вводит на экране правила сумм.
+struct AmountRuleDraft {
+    var minAmount: Decimal
+    var maxAmount: Decimal
+    var afterEvent: SalaryEventKind?
+    var windowDays: Int
+    var categoryId: String
 }

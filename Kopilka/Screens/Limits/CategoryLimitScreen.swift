@@ -3,7 +3,7 @@ import SwiftData
 import Charts
 import KopilkaCore
 
-/// Карточка категории (спека §8): траты за 6 прошедших периодов с линией лимита, лимит крупно, ползунок,
+/// Карточка категории (спека §8): траты за 6 прошедших периодов с линией лимита, лимит крупно (нажатие — ввод суммы),
 /// подсказки «Как обычно / −20% / −40%», экономия и порог предупреждения. Каждое действие сразу сохраняется.
 struct CategoryLimitScreen: View {
     let category: SpendingCategory
@@ -17,9 +17,7 @@ struct CategoryLimitScreen: View {
     @Query private var entries: [JournalEntry]
     @Query(sort: \SpendingCategory.sortOrder) private var categories: [SpendingCategory]
 
-    /// Положение ползунка в тенге; пока его тянут, крупная цифра и линия на графике следуют за ним.
-    @State private var sliderTenge: Double = 0
-    @State private var isDraggingSlider = false
+    @State private var isEditingAmount = false
     @State private var isConfirmingRemoval = false
 
     var body: some View {
@@ -32,8 +30,7 @@ struct CategoryLimitScreen: View {
         let merchantTitles = makeSpan(of: periods).map { span in
             findTopMerchantTitles(categoryId: category.id, entries: entries, period: span, count: 4)
         } ?? []
-        let shownLimit = isDraggingSlider ? Decimal(Int(sliderTenge.rounded())) : category.monthlyLimit
-        let sliderMaximum = calculateLimitSliderMaximum(averageMonthly: average, currentLimit: category.monthlyLimit, minimumTenge: 10_000, stepTenge: 1_000)
+        let shownLimit = category.monthlyLimit
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -53,20 +50,11 @@ struct CategoryLimitScreen: View {
                 }
                 Card {
                     VStack(alignment: .leading, spacing: 14) {
-                        LimitAmountHeader(limit: shownLimit, theme: theme)
-                        Slider(
-                            value: $sliderTenge,
-                            // С 1 000: нулевой лимит сразу «превышен», убирают лимит отдельной кнопкой.
-                            in: 1_000...makeDouble(sliderMaximum),
-                            step: 1_000,
-                            onEditingChanged: { isEditing in finishSliderDrag(isEditing: isEditing) }
-                        )
-                        .tint(theme.accent)
-                        .accessibilityLabel("Лимит на месяц")
-                        .accessibilityValue(shownLimit.map { limit in formatTenge(limit) } ?? "без лимита")
-                        .accessibilityAdjustableAction { direction in
-                            adjustLimitByStep(direction, maximumTenge: sliderMaximum)
+                        Button { isEditingAmount = true } label: {
+                            LimitAmountHeader(limit: shownLimit, theme: theme)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Ввести сумму лимита")
                         LimitPresetButtons(average: average, theme: theme) { limit in
                             updateMonthlyLimit(limit)
                         }
@@ -115,42 +103,27 @@ struct CategoryLimitScreen: View {
             Button("Убрать", role: .destructive, action: removeMonthlyLimit)
             Button("Отмена", role: .cancel) {}
         }
-        .onAppear {
-            moveSlider(to: category.monthlyLimit ?? makeSuggestedLimit(averageMonthly: average, cutPercent: 0, roundingStepTenge: 1_000))
+        .sheet(isPresented: $isEditingAmount) {
+            AmountEditorSheet(
+                title: category.name,
+                fieldTitle: "Лимит на месяц, ₸",
+                initialAmount: category.monthlyLimit ?? makeSuggestedLimit(averageMonthly: average, cutPercent: 0, roundingStepTenge: 1_000),
+                hint: average > 0 ? "В среднем \(formatTenge(average)) в месяц" : nil,
+                onSave: updateMonthlyLimit
+            )
         }
     }
 
-    /// VoiceOver: смахивание вверх/вниз двигает лимит на шаг 1 000 и сохраняет, как отпускание ползунка.
-    private func adjustLimitByStep(_ direction: AccessibilityAdjustmentDirection, maximumTenge: Decimal) {
-        let currentLimit = category.monthlyLimit ?? Decimal(Int(sliderTenge.rounded()))
-        switch direction {
-        case .increment:
-            updateMonthlyLimit(min(currentLimit + 1_000, maximumTenge))
-        case .decrement:
-            updateMonthlyLimit(max(currentLimit - 1_000, 1_000))
-        @unknown default:
+    /// Нулевой лимит сразу был бы «превышен»; убирают лимит отдельной кнопкой.
+    private func updateMonthlyLimit(_ limit: Decimal) {
+        guard limit > 0 else {
+            errorStore.show(LimitEditError.notPositive)
             return
         }
-    }
-
-    /// Сохраняем, когда палец отпущен: запись на каждый шаг ползунка дёргала бы базу и главную.
-    private func finishSliderDrag(isEditing: Bool) {
-        isDraggingSlider = isEditing
-        guard !isEditing else { return }
-        updateMonthlyLimit(Decimal(Int(sliderTenge.rounded())))
-    }
-
-    private func moveSlider(to limit: Decimal) {
-        sliderTenge = makeDouble(limit)
-    }
-
-    private func updateMonthlyLimit(_ limit: Decimal) {
         do {
             try rulesStore.updateMonthlyLimit(limit, of: category)
-            moveSlider(to: limit)
         } catch {
             errorStore.show(error)
-            moveSlider(to: category.monthlyLimit ?? 0)
         }
     }
 
@@ -266,6 +239,7 @@ private func makeChartAccessibilityText(bars: [HistoryBar], limit: Decimal?) -> 
 
 // MARK: - Лимит
 
+/// Лимит крупно с карандашом: по нажатию открывается ввод суммы.
 private struct LimitAmountHeader: View {
     let limit: Decimal?
     let theme: Theme
@@ -275,11 +249,26 @@ private struct LimitAmountHeader: View {
             Text("Лимит на месяц")
                 .font(.subheadline)
                 .foregroundStyle(theme.secondaryText)
-            Text(limit.map { amount in formatTenge(amount) } ?? "Без лимита")
-                .font(theme.heroFont)
-                .monospacedDigit()
-                .foregroundStyle(limit == nil ? theme.secondaryText : theme.text)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(limit.map { amount in formatTenge(amount) } ?? "Задать сумму")
+                    .font(theme.heroFont)
+                    .monospacedDigit()
+                    .foregroundStyle(limit == nil ? theme.accent : theme.text)
+                Image(systemName: "pencil")
+                    .font(.title3)
+                    .foregroundStyle(theme.accent)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+}
+
+enum LimitEditError: LocalizedError {
+    case notPositive
+
+    var errorDescription: String? {
+        "Лимит должен быть больше нуля. Чтобы убрать лимит, нажмите «Убрать лимит»."
     }
 }
 

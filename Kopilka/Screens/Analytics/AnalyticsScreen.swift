@@ -330,7 +330,8 @@ private struct CategoryBar: Identifiable {
     let total: Decimal
 }
 
-/// Одна величина — один цвет: полосы различаются длиной, а не оттенком. Сумма — у конца полосы.
+/// Одна величина — один цвет: полосы различаются длиной, а не оттенком.
+/// Каждая строка — кнопка со стрелкой «›» и подсветкой при нажатии: видно, что её можно открыть.
 private struct CategoryChart: View {
     let rows: [CategorySpendingRow]
     let namesById: [String: String]
@@ -339,9 +340,9 @@ private struct CategoryChart: View {
 
     var body: some View {
         let bars = makeCategoryBars(rows: rows, namesById: namesById)
-        let maxThousands = bars.map { bar in makeThousands(bar.total) }.max() ?? 0
+        let maxTotal = bars.map { bar in bar.total }.max() ?? 0
 
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Куда уходят деньги?")
                 .font(.headline)
                 .foregroundStyle(theme.text)
@@ -350,67 +351,74 @@ private struct CategoryChart: View {
                     .font(.subheadline)
                     .foregroundStyle(theme.secondaryText)
             } else {
-                Text("Нажмите на категорию — покажем продавцов")
-                    .font(.footnote)
-                    .foregroundStyle(theme.secondaryText)
-                Chart(bars) { bar in
-                    BarMark(x: .value("Потрачено, тыс.", makeThousands(bar.total)), y: .value("Категория", bar.name), height: .fixed(14))
-                        .foregroundStyle(theme.accent)
-                        .cornerRadius(4)
-                        .annotation(position: .trailing, alignment: .leading, spacing: 6) {
-                            Text(formatThousands(bar.total))
-                                .font(.caption)
-                                .monospacedDigit()
-                                .foregroundStyle(theme.secondaryText)
-                        }
-                }
-                // Запас справа под подпись у самой длинной полосы.
-                .chartXScale(domain: 0...max(maxThousands * 1.2, 1))
-                .chartXAxis(.hidden)
-                .chartYAxis {
-                    AxisMarks(position: .leading) { _ in
-                        AxisValueLabel()
-                            .font(.footnote)
-                            .foregroundStyle(theme.text)
-                    }
-                }
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(.clear)
-                            .contentShape(Rectangle())
-                            .onTapGesture { location in
-                                openTappedCategory(location: location, proxy: proxy, geometry: geometry, bars: bars)
-                            }
-                    }
-                }
-                // Название стоит над полосой: так длинные имена не отнимают ширину у полос.
-                .frame(height: CGFloat(bars.count) * 44)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Траты по категориям")
-                .accessibilityValue(bars.map { bar in "\(bar.name) \(formatTenge(bar.total))" }.joined(separator: ", "))
-                .accessibilityActions {
-                    ForEach(bars.filter { bar in bar.categoryId != nil }) { bar in
-                        Button("Продавцы: \(bar.name)") { openCategory(bar) }
+                ForEach(bars) { bar in
+                    CategoryBarRow(bar: bar, maxTotal: maxTotal, theme: theme) {
+                        openCategory(bar)
                     }
                 }
             }
         }
     }
 
-    /// Полоса выбирается по высоте касания: попасть пальцем в тонкую полосу трудно, вся строка — цель.
-    private func openTappedCategory(location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy, bars: [CategoryBar]) {
-        guard let plotFrame = proxy.plotFrame else { return }
-        let plotY = location.y - geometry[plotFrame].origin.y
-        guard let name = proxy.value(atY: plotY, as: String.self) else { return }
-        guard let bar = bars.first(where: { bar in bar.name == name }) else { return }
-        openCategory(bar)
-    }
-
     /// «Прочее» — несколько категорий сразу, продавцов у него нет.
     private func openCategory(_ bar: CategoryBar) {
         guard let categoryId = bar.categoryId else { return }
         onOpenCategory(categoryId)
+    }
+}
+
+private struct CategoryBarRow: View {
+    let bar: CategoryBar
+    let maxTotal: Decimal
+    let theme: Theme
+    let onTap: () -> Void
+
+    var body: some View {
+        let isOpenable = bar.categoryId != nil
+        let share = maxTotal > 0 ? makeDouble(bar.total / maxTotal) : 0
+
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(bar.name)
+                        .font(.subheadline)
+                        .foregroundStyle(theme.text)
+                    Spacer()
+                    Text(formatThousands(bar.total))
+                        .font(.subheadline)
+                        .monospacedDigit()
+                        .foregroundStyle(theme.secondaryText)
+                    if isOpenable {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                }
+                GeometryReader { geometry in
+                    Capsule()
+                        .fill(theme.accent)
+                        .frame(width: max(geometry.size.width * share, 4), height: 8)
+                }
+                .frame(height: 8)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressedRowStyle(highlight: theme.track))
+        .disabled(!isOpenable)
+        .accessibilityLabel("\(bar.name), \(formatTenge(bar.total))")
+        .accessibilityHint(isOpenable ? "Показать продавцов" : "")
+    }
+}
+
+/// Подсветка строки, пока палец на ней, — как у строк списка в iOS.
+private struct PressedRowStyle: ButtonStyle {
+    let highlight: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? highlight : .clear, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 

@@ -161,6 +161,10 @@ private struct BalanceCard: View {
                 MoneyText(amount: amount, style: .title)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                // Видимая подсказка: без неё непонятно, что карточку можно нажать и поправить остаток.
+                Label("Сверить", systemImage: "pencil")
+                    .font(.footnote)
+                    .foregroundStyle(theme.accent)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
