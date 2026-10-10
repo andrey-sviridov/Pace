@@ -22,8 +22,13 @@ public func formatTenge(_ amount: Decimal) -> String {
     return "\(number) ₸"
 }
 
-/// Сумма в тысячах для легенд и лимитов: «800», «1,5k», «42k», «1 235k».
+/// Сумма в тысячах для легенд и лимитов: «800», «1,5k», «42k»; от миллиона — «1 млн», «1,2 млн».
 public func formatThousands(_ amount: Decimal) -> String {
+    // Сравниваем уже округлённые тысячи: 999 600 иначе превратилось бы в «1 000k».
+    guard abs(roundAmount(amount / 1000, fractionDigits: 0)) < 1000 else {
+        let millions = roundAmount(amount / 1_000_000, fractionDigits: 1)
+        return formatRussianNumber(millions, maxFractionDigits: 1) + " млн"
+    }
     guard abs(amount) >= 1000 else {
         return formatRussianNumber(roundAmount(amount, fractionDigits: 0), maxFractionDigits: 0)
     }

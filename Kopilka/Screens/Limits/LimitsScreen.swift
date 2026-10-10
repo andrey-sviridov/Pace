@@ -18,9 +18,14 @@ struct LimitsScreen: View {
     @State private var editedAmount: LimitsEditedAmount?
 
     var body: some View {
-        let monthlySavingsGoal = settingsStore.settings.monthlySavingsGoal
+        let settings = settingsStore.settings
+        let monthlySavingsGoal = settings.monthlySavingsGoal
+        // Те же границы аванса и разовой премии, что у главной и импорта.
+        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+        // Обязательные считаем от начала текущего периода, как главная: иначе «Не распределено» разошлось бы с её резервом.
+        let currentPeriod = makePeriod(containing: today, mode: settings.periodMode, salaryEvents: salaryEvents)
         let income = calculateTypicalMonthlyIncome(entries: entries, categories: categories, before: today, monthCount: 3)
-        let obligatoryRows = makeLimitRows(categories: categories, kind: .obligatory, entries: entries, before: today, monthCount: 3)
+        let obligatoryRows = makeLimitRows(categories: categories, kind: .obligatory, entries: entries, before: currentPeriod.start, monthCount: 3)
         let flexibleRows = makeLimitRows(categories: categories, kind: .flexible, entries: entries, before: today, monthCount: 6)
         let plan = calculateLimitPlan(monthlyIncome: income, obligatoryRows: obligatoryRows, flexibleRows: flexibleRows, monthlySavingsGoal: monthlySavingsGoal)
 

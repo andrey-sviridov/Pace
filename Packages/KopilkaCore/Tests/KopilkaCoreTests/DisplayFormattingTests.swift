@@ -22,7 +22,11 @@ import Testing
     @Test func largeAmountRoundsToWholeThousands() {
         #expect(formatThousands(42_300) == "42k")
         #expect(formatThousands(186_500) == "187k")
-        #expect(formatThousands(1_234_567) == "1\(nonBreakingSpace)235k")
+        #expect(formatThousands(999_400) == "999k")
+        #expect(formatThousands(999_600) == "1 млн")
+        #expect(formatThousands(1_000_000) == "1 млн")
+        #expect(formatThousands(1_234_567) == "1,2 млн")
+        #expect(formatThousands(-2_500_000) == "-2,5 млн")
     }
 
     @Test func negativeAmountKeepsSign() {

@@ -20,13 +20,15 @@ struct CategoryLimitScreen: View {
     /// Положение ползунка в тенге; пока его тянут, крупная цифра и линия на графике следуют за ним.
     @State private var sliderTenge: Double = 0
     @State private var isDraggingSlider = false
+    @State private var isConfirmingRemoval = false
 
     var body: some View {
         // Те же границы аванса и разовой премии, что у главной и импорта.
         let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
         let periods = makeLimitHistoryPeriods(today: today, mode: settingsStore.settings.periodMode, salaryEvents: salaryEvents, count: 6)
         let history = calculateCategoryHistory(categoryId: category.id, periods: periods, entries: entries, categories: categories)
-        let average = calculateTypicalMonthlyAmount(categoryId: category.id, entries: entries, before: today, monthCount: 6)
+        // Среднее — по тем же столбикам, что на графике: цифры на карточке совпадают с тем, что видно.
+        let average = calculateMedianAmount(history)
         let merchantTitles = makeSpan(of: periods).map { span in
             findTopMerchantTitles(categoryId: category.id, entries: entries, period: span, count: 4)
         } ?? []
@@ -54,13 +56,17 @@ struct CategoryLimitScreen: View {
                         LimitAmountHeader(limit: shownLimit, theme: theme)
                         Slider(
                             value: $sliderTenge,
-                            in: 0...makeDouble(sliderMaximum),
+                            // С 1 000: нулевой лимит сразу «превышен», убирают лимит отдельной кнопкой.
+                            in: 1_000...makeDouble(sliderMaximum),
                             step: 1_000,
                             onEditingChanged: { isEditing in finishSliderDrag(isEditing: isEditing) }
                         )
                         .tint(theme.accent)
                         .accessibilityLabel("Лимит на месяц")
                         .accessibilityValue(shownLimit.map { limit in formatTenge(limit) } ?? "без лимита")
+                        .accessibilityAdjustableAction { direction in
+                            adjustLimitByStep(direction, maximumTenge: sliderMaximum)
+                        }
                         LimitPresetButtons(average: average, theme: theme) { limit in
                             updateMonthlyLimit(limit)
                         }
@@ -86,8 +92,10 @@ struct CategoryLimitScreen: View {
                             .pickerStyle(.menu)
                             .tint(theme.accent)
                         }
-                        Button("Убрать лимит", role: .destructive, action: removeMonthlyLimit)
-                            .disabled(category.monthlyLimit == nil)
+                        Button("Убрать лимит", role: .destructive) {
+                            isConfirmingRemoval = true
+                        }
+                        .disabled(category.monthlyLimit == nil)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -97,8 +105,31 @@ struct CategoryLimitScreen: View {
         .background(theme.background)
         .navigationTitle(category.name)
         .navigationBarTitleDisplayMode(.inline)
+        // Плавающая панель вкладок закрывала «Убрать лимит» внизу карточки.
+        .toolbar(.hidden, for: .tabBar)
+        .confirmationDialog(
+            makeRemovalQuestion(limit: category.monthlyLimit),
+            isPresented: $isConfirmingRemoval,
+            titleVisibility: .visible
+        ) {
+            Button("Убрать", role: .destructive, action: removeMonthlyLimit)
+            Button("Отмена", role: .cancel) {}
+        }
         .onAppear {
             moveSlider(to: category.monthlyLimit ?? makeSuggestedLimit(averageMonthly: average, cutPercent: 0, roundingStepTenge: 1_000))
+        }
+    }
+
+    /// VoiceOver: смахивание вверх/вниз двигает лимит на шаг 1 000 и сохраняет, как отпускание ползунка.
+    private func adjustLimitByStep(_ direction: AccessibilityAdjustmentDirection, maximumTenge: Decimal) {
+        let currentLimit = category.monthlyLimit ?? Decimal(Int(sliderTenge.rounded()))
+        switch direction {
+        case .increment:
+            updateMonthlyLimit(min(currentLimit + 1_000, maximumTenge))
+        case .decrement:
+            updateMonthlyLimit(max(currentLimit - 1_000, 1_000))
+        @unknown default:
+            return
         }
     }
 
@@ -209,6 +240,12 @@ private struct CategoryHistoryChart: View {
         guard let limit else { return false }
         return amount > limit
     }
+}
+
+/// «Убрать лимит 79 000 ₸?»
+private func makeRemovalQuestion(limit: Decimal?) -> String {
+    guard let limit else { return "Убрать лимит?" }
+    return "Убрать лимит \(formatTenge(limit))?"
 }
 
 /// «- - - новый лимит 45k · в среднем 56k · выше лимита: 3».

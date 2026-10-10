@@ -136,6 +136,38 @@ import Testing
         #expect(makeSuggestedLimit(averageMonthly: 56_200, cutPercent: 0, roundingStepTenge: 1_000) == 56_000)
         #expect(makeSuggestedLimit(averageMonthly: 56_000, cutPercent: 20, roundingStepTenge: 1_000) == 45_000)
         #expect(makeSuggestedLimit(averageMonthly: 56_000, cutPercent: 40, roundingStepTenge: 1_000) == 34_000)
+        #expect(makeSuggestedLimit(averageMonthly: 300, cutPercent: 0, roundingStepTenge: 1_000) == 1_000)
+        #expect(makeSuggestedLimit(averageMonthly: 0, cutPercent: 40, roundingStepTenge: 1_000) == 1_000)
+    }
+
+    @Test func medianAmountMatchesShownBars() {
+        #expect(calculateMedianAmount([10_000, 90_000, 30_000]) == 30_000)
+        #expect(calculateMedianAmount([10_000, 20_000, 30_000, 90_000]) == 25_000)
+        #expect(calculateMedianAmount([]) == 0)
+    }
+
+    @Test func obligatoryRowMatchesHomePlanInSalaryMode() {
+        let categories = makeBuiltInCategories()
+        let utilities = findCategory("utilities", in: categories)
+        // Платежи по месяцам: июнь 10k, июль 20k, август 30k, сентябрь 90k.
+        let entries = [
+            makeBudgetEntry("05.06.2026", .expense, 10_000, categoryId: "utilities"),
+            makeBudgetEntry("05.07.2026", .expense, 20_000, categoryId: "utilities"),
+            makeBudgetEntry("05.08.2026", .expense, 30_000, categoryId: "utilities"),
+            makeBudgetEntry("05.09.2026", .expense, 90_000, categoryId: "utilities"),
+        ]
+        let salaryEvents = [makeSalaryEvent("30.08.2026", .salary), makeSalaryEvent("30.09.2026", .salary)]
+        let today = makeDay("10.10.2026")
+        let currentPeriod = makePeriod(containing: today, mode: .salaryMonth, salaryEvents: salaryEvents)
+
+        let rows = makeLimitRows(categories: categories, kind: .obligatory, entries: entries, before: currentPeriod.start, monthCount: 3)
+        let utilitiesRow = rows.first { row in row.category.id == "utilities" }
+        let homePlan = calculatePlannedAmount(category: utilities, period: currentPeriod, mode: .salaryMonth, entries: entries)
+
+        // Период с 30 сентября: полные месяцы июнь–август, медиана 20k, а не июль–сентябрь (30k).
+        #expect(currentPeriod.start == makeDay("30.09.2026"))
+        #expect(utilitiesRow?.plannedMonthly == homePlan)
+        #expect(homePlan == 20_000)
     }
 
     @Test func sliderMaximumCoversAverageMinimumAndCurrentLimit() {

@@ -41,7 +41,8 @@ public func calculateTypicalMonthlyIncome(entries: [JournalEntry], categories: [
     return calculateMedian(monthlyIncomes)
 }
 
-/// Строки категорий одного вида с их средним за `monthCount` месяцев.
+/// Строки категорий одного вида с их средним за `monthCount` полных месяцев до `day`.
+/// Для обязательных `day` — начало текущего периода: так ожидаемая сумма та же, что резервирует главная.
 /// Гибкие — от самых больших трат: резать имеет смысл прежде всего их. Обязательные — в порядке категорий.
 public func makeLimitRows(
     categories: [SpendingCategory],
@@ -113,9 +114,16 @@ public func findTopMerchantTitles(categoryId: String, entries: [JournalEntry], p
 }
 
 /// Подсказка лимита: среднее, урезанное на `cutPercent` процентов и округлённое до шага ползунка.
+/// Не меньше одного шага: нулевой лимит сразу делал бы категорию «превышенной», убирают лимит отдельной кнопкой.
 public func makeSuggestedLimit(averageMonthly: Decimal, cutPercent: Int, roundingStepTenge: Decimal) -> Decimal {
     let cutAmount = averageMonthly * Decimal(100 - cutPercent) / 100
-    return roundToStep(cutAmount, stepTenge: roundingStepTenge)
+    return max(roundToStep(cutAmount, stepTenge: roundingStepTenge), roundingStepTenge)
+}
+
+/// Медиана сумм (например, столбиков карточки), чтобы «в среднем» совпадало с тем, что видно на графике; пусто — 0.
+public func calculateMedianAmount(_ amounts: [Decimal]) -> Decimal {
+    guard !amounts.isEmpty else { return 0 }
+    return calculateMedian(amounts)
 }
 
 /// Правый край ползунка: двойное среднее, но не меньше `minimumTenge` и не меньше текущего лимита.
