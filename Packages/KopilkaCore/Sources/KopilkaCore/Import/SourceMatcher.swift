@@ -55,16 +55,44 @@ public func findMatchingEntry(
     return .noMatch
 }
 
+/// Почему ручную склейку нельзя выполнить. Экран показывает это как ошибку: кнопки не должны были её допустить.
+public enum MergeError: Error, Equatable {
+    case sameEntry
+    case entryAlreadyMerged
+}
+
 /// Сливает две записи вручную: источники переезжают в `keep`, `remove` остаётся скрытой,
 /// чтобы её ключи продолжали ловить дубли (удаление каскадом стёрло бы источники).
-public func mergeEntries(keep: JournalEntry, remove: JournalEntry) {
+/// `allEntries` нужны, чтобы найти записи, раньше склеенные в `remove`: они переводятся на `keep`,
+/// иначе цепочка вела бы к скрытой записи.
+public func mergeEntries(keep: JournalEntry, remove: JournalEntry, allEntries: [JournalEntry]) throws {
+    guard keep !== remove else { throw MergeError.sameEntry }
+    guard keep.mergedInto == nil, remove.mergedInto == nil else { throw MergeError.entryAlreadyMerged }
+
     for source in remove.sources {
         source.entry = keep
+    }
+    // Комиссию знает только выписка: если её принёс второй источник, без переноса остаток разошёлся бы на сумму комиссии.
+    if remove.feeAmount > 0 && keep.feeAmount == 0 {
+        keep.feeAmount = remove.feeAmount
+    }
+    let entriesMergedIntoRemove = allEntries.filter { entry in entry.mergedInto === remove }
+    for entry in entriesMergedIntoRemove {
+        entry.mergedInto = keep
     }
     remove.mergedInto = keep
     if keep.possibleDuplicateOf === remove {
         keep.possibleDuplicateOf = nil
     }
+}
+
+/// Видимая запись, в которую в итоге склеена `entry` (или сама `entry`, если она не склеена).
+public func findMergeRoot(_ entry: JournalEntry) -> JournalEntry {
+    var root = entry
+    while let next = root.mergedInto {
+        root = next
+    }
+    return root
 }
 
 private func hasSource(_ entry: JournalEntry, kind: SourceKind) -> Bool {

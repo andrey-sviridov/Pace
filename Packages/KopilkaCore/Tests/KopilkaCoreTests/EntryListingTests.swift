@@ -26,18 +26,19 @@ import Testing
         #expect(makeDayGroups([]).isEmpty)
     }
 
-    @Test func mergeCandidatesHaveSameAmountWithinWindow() {
+    @Test func mergeCandidatesHaveSameTypeAndAmountWithinWindow() {
         let entry = makeEntry("12.10.2026", amount: 1500)
         let sameDay = makeEntry("12.10.2026", amount: 1500)
         let threeDaysLater = makeEntry("15.10.2026", amount: 1500)
         let fourDaysEarlier = makeEntry("08.10.2026", amount: 1500)
         let otherAmount = makeEntry("12.10.2026", amount: 1501)
+        let otherType = makeEntry("12.10.2026", amount: 1500, type: .transfer)
         let merged = makeEntry("12.10.2026", amount: 1500)
         merged.mergedInto = sameDay
 
         let candidates = findMergeCandidates(
             for: entry,
-            among: [entry, threeDaysLater, sameDay, fourDaysEarlier, otherAmount, merged],
+            among: [entry, threeDaysLater, sameDay, fourDaysEarlier, otherAmount, otherType, merged],
             windowDays: 3
         )
 

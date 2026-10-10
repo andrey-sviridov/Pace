@@ -64,7 +64,7 @@ struct ReviewScreen: View {
             Button("Сохранить") { updateTitle(entry) }
             Button("Отмена", role: .cancel) {}
         } message: { entry in
-            Text("Новое название запомнится для этого продавца.")
+            Text(makeRenameMessage(entry))
         }
         .confirmationDialog(
             "Объединить с похожей записью?",
@@ -88,7 +88,10 @@ struct ReviewScreen: View {
     private func updateCategory(_ entry: JournalEntry, categoryId: String) {
         let existingRule = merchantRules.first { rule in rule.merchantKey == entry.merchantKey }
         do {
-            try saveUserEdit(entry, title: entry.title, categoryId: categoryId, ruleTitle: existingRule?.title, journalStore: journalStore)
+            try journalStore.updateEntry(entry, title: entry.title, categoryId: categoryId)
+            // У переводов продавца нет (пустой ключ) — стор правило не пишет и возвращает nil.
+            guard let rule = try journalStore.saveMerchantRule(merchantKey: entry.merchantKey, categoryId: categoryId, title: existingRule?.title) else { return }
+            try journalStore.applyRuleToUnreviewed(rule)
         } catch {
             errorStore.show(error)
         }
@@ -98,17 +101,22 @@ struct ReviewScreen: View {
         let title = draftTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty, title != entry.title else { return }
         do {
-            try saveUserEdit(entry, title: title, categoryId: entry.categoryId, ruleTitle: title, journalStore: journalStore)
+            try journalStore.updateEntry(entry, title: title, categoryId: entry.categoryId)
+            // Категория ещё не выбрана (переименовали неизвестную покупку) — правилу нечего запомнить,
+            // а подставленная за пользователя категория сделала бы следующие покупки продавца проверенными.
+            guard let categoryId = entry.categoryId else { return }
+            guard let rule = try journalStore.saveMerchantRule(merchantKey: entry.merchantKey, categoryId: categoryId, title: title) else { return }
+            try journalStore.applyRuleToUnreviewed(rule)
         } catch {
             errorStore.show(error)
         }
     }
 
     /// Остаётся прежняя запись (кандидат), новая-дубль скрывается и отдаёт ей свои источники.
-    /// Кандидат мог уже сам уйти в другую запись — тогда объединяем с ней.
+    /// Кандидат мог уже сам уйти в другую запись — тогда объединяем с той, что видна в журнале.
     private func mergeWithCandidate(_ entry: JournalEntry) {
         guard let candidate = entry.possibleDuplicateOf else { return }
-        let keptEntry = candidate.mergedInto ?? candidate
+        let keptEntry = findMergeRoot(candidate)
         do {
             try journalStore.mergeEntries(keep: keptEntry, remove: entry)
         } catch {
@@ -209,6 +217,13 @@ private struct ReviewDoneButton: View {
 /// С какой записью объединяем: «Останется «Magnum» · 1 500 ₸ · 12 окт. …».
 private func makeMergeMessage(_ entry: JournalEntry) -> String {
     guard let candidate = entry.possibleDuplicateOf else { return "" }
-    let keptEntry = candidate.mergedInto ?? candidate
-    return "Останется «\(keptEntry.title)» · \(formatTenge(keptEntry.amount)) · \(formatShortDay(keptEntry.day)). Источники этой записи перейдут в неё."
+    let keptEntry = findMergeRoot(candidate)
+    let amountText = formatSignedTenge(keptEntry.amount, type: keptEntry.type)
+    return "Останется «\(keptEntry.title)» · \(amountText) · \(formatShortDay(keptEntry.day)). Источники этой записи перейдут в неё."
+}
+
+/// Правило пишется только у продавца с выбранной категорией — иначе меняется одна запись.
+private func makeRenameMessage(_ entry: JournalEntry) -> String {
+    let willSaveRule = !entry.merchantKey.isEmpty && entry.categoryId != nil
+    return willSaveRule ? "Новое название запомнится для этого продавца." : "Название изменится только у этой записи."
 }

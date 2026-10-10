@@ -30,12 +30,13 @@ public func makeDayGroups(_ entries: [JournalEntry]) -> [DayGroup] {
     return groups
 }
 
-/// Кандидаты для «Это та же операция, что…»: видимые записи с той же суммой в пределах `windowDays` от записи.
+/// Кандидаты для «Это та же операция, что…»: видимые записи того же типа и с той же суммой в пределах `windowDays` от записи.
 /// Ближайшие по дате — сверху.
 public func findMergeCandidates(for entry: JournalEntry, among entries: [JournalEntry], windowDays: Int) -> [JournalEntry] {
     let candidates = entries.filter { other in
         other !== entry
             && other.mergedInto == nil
+            && other.type == entry.type
             && other.amount == entry.amount
             && abs(entry.day.daysUntil(other.day)) <= windowDays
     }

@@ -35,6 +35,10 @@ func makeErrorMessage(_ error: Error) -> String {
         return "В выписке не удалось прочитать сумму «\(text)». Ничего не записано."
     case ParsingError.badDate(let text):
         return "В выписке не удалось прочитать дату «\(text)». Ничего не записано."
+    case MergeError.sameEntry:
+        return "Нельзя объединить запись саму с собой."
+    case MergeError.entryAlreadyMerged:
+        return "Одна из записей уже объединена с другой. Откройте журнал заново и выберите видимую запись."
     default:
         return "Что-то пошло не так: \(error.localizedDescription)"
     }

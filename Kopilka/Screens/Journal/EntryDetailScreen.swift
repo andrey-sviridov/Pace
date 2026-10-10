@@ -82,7 +82,10 @@ struct EntryDetailScreen: View {
     private func updateCategory(_ categoryId: String) {
         let existingRule = merchantRules.first { rule in rule.merchantKey == entry.merchantKey }
         do {
-            try saveUserEdit(entry, title: entry.title, categoryId: categoryId, ruleTitle: existingRule?.title, journalStore: journalStore)
+            try journalStore.updateEntry(entry, title: entry.title, categoryId: categoryId)
+            // У переводов продавца нет (пустой ключ) — стор правило не пишет и возвращает nil.
+            guard let rule = try journalStore.saveMerchantRule(merchantKey: entry.merchantKey, categoryId: categoryId, title: existingRule?.title) else { return }
+            try journalStore.applyRuleToUnreviewed(rule)
         } catch {
             errorStore.show(error)
         }
@@ -90,18 +93,26 @@ struct EntryDetailScreen: View {
 
     private func saveText() {
         let title = draftTitle.trimmingCharacters(in: .whitespaces)
+        // Пустое название не сохраняем — возвращаем в поле прежнее.
+        if title.isEmpty {
+            draftTitle = entry.title
+        }
+        let isTitleChanged = !title.isEmpty && title != entry.title
         do {
-            if !title.isEmpty, title != entry.title {
-                try saveUserEdit(entry, title: title, categoryId: entry.categoryId, ruleTitle: title, journalStore: journalStore)
-            }
             if draftNote != entry.note {
                 try journalStore.updateNote(entry, note: draftNote)
             }
+            guard isTitleChanged else { return }
+            try journalStore.updateEntry(entry, title: title, categoryId: entry.categoryId)
+            draftTitle = title
+            // Категория ещё не выбрана (переименовали неизвестную покупку) — правилу нечего запомнить,
+            // а подставленная за пользователя категория сделала бы следующие покупки продавца проверенными.
+            guard let categoryId = entry.categoryId else { return }
+            guard let rule = try journalStore.saveMerchantRule(merchantKey: entry.merchantKey, categoryId: categoryId, title: title) else { return }
+            try journalStore.applyRuleToUnreviewed(rule)
         } catch {
             errorStore.show(error)
         }
-        // Пустое название не сохраняем — возвращаем прежнее в поле.
-        draftTitle = entry.title
     }
 
     private func merge(_ candidate: JournalEntry) {
@@ -216,7 +227,7 @@ private struct SameEntryPicker: View {
             }
             .overlay {
                 if candidates.isEmpty {
-                    ContentUnavailableView("Нет похожих записей", systemImage: "equal.circle", description: Text("Ищем записи с той же суммой в пределах трёх дней."))
+                    ContentUnavailableView("Нет похожих записей", systemImage: "equal.circle", description: Text("Ищем записи того же типа с той же суммой в пределах трёх дней."))
                 }
             }
             // Подтверждение внутри sheet: окно поверх закрывающегося sheet SwiftUI не показывает.
@@ -232,7 +243,7 @@ private struct SameEntryPicker: View {
                 }
                 Button("Отмена", role: .cancel) {}
             } message: { candidate in
-                Text("«\(candidate.title)» · \(formatTenge(candidate.amount)) · \(formatShortDay(candidate.day)) скроется, а её источники перейдут в эту запись.")
+                Text("«\(candidate.title)» · \(formatSignedTenge(candidate.amount, type: candidate.type)) · \(formatShortDay(candidate.day)) скроется, а её источники перейдут в эту запись.")
             }
             .navigationTitle("Та же операция")
             .navigationBarTitleDisplayMode(.inline)

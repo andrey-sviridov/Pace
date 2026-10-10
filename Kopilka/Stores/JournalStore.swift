@@ -98,7 +98,8 @@ final class JournalStore {
 
     /// «Это та же операция»: `remove` скрывается, его источники переезжают в `keep`.
     func mergeEntries(keep: JournalEntry, remove: JournalEntry) throws {
-        KopilkaCore.mergeEntries(keep: keep, remove: remove)
+        let allEntries = try context.fetch(FetchDescriptor<JournalEntry>())
+        try KopilkaCore.mergeEntries(keep: keep, remove: remove, allEntries: allEntries)
         try context.save()
     }
 

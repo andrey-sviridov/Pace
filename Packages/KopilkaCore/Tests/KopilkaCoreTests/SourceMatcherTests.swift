@@ -146,12 +146,67 @@ import Testing
         context.insert(remove)
         keep.possibleDuplicateOf = remove
 
-        mergeEntries(keep: keep, remove: remove)
+        try mergeEntries(keep: keep, remove: remove, allEntries: [keep, remove])
         try context.save()
 
         #expect(keep.sources.count == 3)
         #expect(remove.sources.isEmpty)
         #expect(remove.mergedInto === keep)
         #expect(keep.possibleDuplicateOf == nil)
+    }
+
+    @Test func mergeCarriesFeeWhenKeptEntryHasNone() throws {
+        let keep = makeEntry(sources: [.sms], time: noon)
+        let remove = makeEntry(sources: [.statement])
+        remove.feeAmount = 200
+
+        try mergeEntries(keep: keep, remove: remove, allEntries: [keep, remove])
+
+        #expect(keep.feeAmount == 200)
+    }
+
+    @Test func mergeKeepsExistingFee() throws {
+        let keep = makeEntry(sources: [.statement])
+        keep.feeAmount = 150
+        let remove = makeEntry(sources: [.sms], time: noon)
+        remove.feeAmount = 200
+
+        try mergeEntries(keep: keep, remove: remove, allEntries: [keep, remove])
+
+        #expect(keep.feeAmount == 150)
+    }
+
+    @Test func mergeRedirectsChainToKeptEntry() throws {
+        let first = makeEntry(sources: [.applePay], time: noon)
+        let second = makeEntry(sources: [.sms], time: noon)
+        let third = makeEntry(sources: [.statement])
+        let allEntries = [first, second, third]
+
+        // X склеили в Y, потом Y склеили в Z: X должна указывать на Z, а не на скрытую Y.
+        try mergeEntries(keep: second, remove: first, allEntries: allEntries)
+        try mergeEntries(keep: third, remove: second, allEntries: allEntries)
+
+        #expect(first.mergedInto === third)
+        #expect(second.mergedInto === third)
+        #expect(third.mergedInto == nil)
+        #expect(findMergeRoot(first) === third)
+        #expect(findMergeRoot(third) === third)
+    }
+
+    @Test func mergeRejectsSameOrHiddenEntry() throws {
+        let keep = makeEntry(sources: [.applePay], time: noon)
+        let remove = makeEntry(sources: [.sms], time: noon)
+        let other = makeEntry(sources: [.statement])
+
+        #expect(throws: MergeError.sameEntry) {
+            try mergeEntries(keep: keep, remove: keep, allEntries: [keep])
+        }
+        try mergeEntries(keep: keep, remove: remove, allEntries: [keep, remove])
+        #expect(throws: MergeError.entryAlreadyMerged) {
+            try mergeEntries(keep: remove, remove: other, allEntries: [keep, remove, other])
+        }
+        #expect(throws: MergeError.entryAlreadyMerged) {
+            try mergeEntries(keep: other, remove: remove, allEntries: [keep, remove, other])
+        }
     }
 }
