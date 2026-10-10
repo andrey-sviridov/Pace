@@ -112,7 +112,7 @@ func calculatePlannedAmount(category: SpendingCategory, period: Period, mode: Pe
 
     // Неизвестно, в какую половину платёж: резервируем в обеих, лучше показать меньше, чем внезапный минус.
     guard let lastPaymentDay = findLastPaymentDay(categoryId: category.id, entries: entries, before: period.start) else { return monthlyPlan }
-    return hasDayOfMonth(lastPaymentDay.day, in: period) ? monthlyPlan : 0
+    return findDay(withDayOfMonth: lastPaymentDay.day, in: period) != nil ? monthlyPlan : 0
 }
 
 /// Медиана трат категории за последние `monthCount` полных календарных месяцев до `day`; нет истории — 0.
@@ -140,16 +140,17 @@ func makeFullMonths(before day: CalendarDay, monthCount: Int) -> [Period] {
     return months
 }
 
-private func findLastPaymentDay(categoryId: String, entries: [JournalEntry], before day: CalendarDay) -> CalendarDay? {
+/// Последний платёж категории до `day` — по нему угадываем, какого числа платят.
+func findLastPaymentDay(categoryId: String, entries: [JournalEntry], before day: CalendarDay) -> CalendarDay? {
     entries
         .filter { entry in entry.mergedInto == nil && entry.type == .expense && entry.categoryId == categoryId && entry.day < day }
         .map { entry in entry.day }
         .max()
 }
 
-/// Есть ли в периоде день с этим числом; платёж 31-го в коротком месяце приходится на последний день.
-private func hasDayOfMonth(_ dayOfMonth: Int, in period: Period) -> Bool {
-    period.days.contains { day in
+/// День периода с этим числом месяца; платёж 31-го в коротком месяце приходится на последний день. Нет такого — nil.
+func findDay(withDayOfMonth dayOfMonth: Int, in period: Period) -> CalendarDay? {
+    period.days.first { day in
         let isLastDayOfMonth = day.adding(days: 1).month != day.month
         return day.day == dayOfMonth || (isLastDayOfMonth && day.day < dayOfMonth)
     }

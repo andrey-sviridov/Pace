@@ -333,12 +333,3 @@ private func makeSpan(of periods: [Period]) -> Period? {
     guard let first = periods.first, let last = periods.last else { return nil }
     return Period(start: first.start, endExclusive: last.endExclusive)
 }
-
-/// Ползунок и график работают с Double; это только положение на экране, сами суммы остаются в Decimal.
-private func makeDouble(_ amount: Decimal) -> Double {
-    NSDecimalNumber(decimal: amount).doubleValue
-}
-
-private func makeThousands(_ amount: Decimal) -> Double {
-    makeDouble(amount / 1000)
-}
