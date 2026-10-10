@@ -98,4 +98,42 @@ final class RulesStore {
             throw error
         }
     }
+
+    // MARK: - Правила продавцов и сумм (экран «Правила»)
+
+    /// Правка встроенного правила делает его правилом пользователя: засев его больше не трогает.
+    func updateMerchantRule(_ rule: MerchantRule, categoryId: String) throws {
+        rule.categoryId = categoryId
+        rule.isBuiltIn = false
+        try context.save()
+    }
+
+    /// Удалять можно только свои правила: встроенное всё равно вернулось бы при следующем засеве.
+    func deleteMerchantRule(_ rule: MerchantRule) throws {
+        guard !rule.isBuiltIn else { return }
+        context.delete(rule)
+        try context.save()
+    }
+
+    func updateAmountRange(_ rule: AmountRule, minAmount: Decimal, maxAmount: Decimal) throws {
+        rule.minAmount = minAmount
+        rule.maxAmount = maxAmount
+        try context.save()
+    }
+
+    func updateWindowDays(_ rule: AmountRule, windowDays: Int) throws {
+        rule.windowDays = windowDays
+        try context.save()
+    }
+
+    /// Дата «переводы до … — на свою Kaspi» живёт в двух местах: в настройках и в правиле сумм с beforeDay.
+    /// Меняем обе, иначе импорт продолжил бы считать по старой дате.
+    func updateKaspiCutoff(_ day: CalendarDay) throws {
+        let rules = try context.fetch(FetchDescriptor<AmountRule>())
+        let cutoffRules = rules.filter { rule in rule.beforeDay != nil }
+        for rule in cutoffRules {
+            rule.beforeDay = day
+        }
+        try context.save()
+    }
 }

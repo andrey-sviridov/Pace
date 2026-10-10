@@ -61,6 +61,16 @@ import Testing
         #expect(makeCalendarDay(date: date, calendar: utcCalendar) == makeDay("09.10.2026"))
         #expect(makeCalendarDay(date: date, calendar: almatyCalendar) == makeDay("10.10.2026"))
     }
+
+    @Test func dateFromCalendarDayRoundTripsInSameCalendar() {
+        var almatyCalendar = Calendar(identifier: .gregorian)
+        almatyCalendar.timeZone = TimeZone(identifier: "Asia/Almaty")!
+        let day = makeDay("01.03.2026")
+
+        let date = makeDate(day: day, calendar: almatyCalendar)
+
+        #expect(makeCalendarDay(date: date, calendar: almatyCalendar) == day)
+    }
 }
 
 @Suite struct RoundDownTests {

@@ -75,6 +75,19 @@ private func checkBackup(_ file: BackupFile) throws {
 
 // MARK: - Восстановление
 
+/// «Начать заново»: стирает всё, пользователь подтвердил дважды. Либо стирается всё, либо ничего.
+public func eraseAllData(context: ModelContext) throws {
+    do {
+        try context.transaction {
+            try deleteAllData(context: context)
+        }
+        try context.save()
+    } catch {
+        context.rollback()
+        throw error
+    }
+}
+
 private func deleteAllData(context: ModelContext) throws {
     // Источники удаляем до записей: двойное удаление через каскад ломает rollback (SwiftData падает при откате).
     for source in try context.fetch(FetchDescriptor<SourceRecord>()) { context.delete(source) }

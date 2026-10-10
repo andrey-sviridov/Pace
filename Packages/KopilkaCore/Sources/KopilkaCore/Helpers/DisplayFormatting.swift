@@ -11,6 +11,15 @@ public func makeCalendarDay(date: Date, calendar: Calendar) -> CalendarDay {
     return CalendarDay(year: year, month: month, day: day)
 }
 
+/// Начало дня в календаре пользователя — для системного выбора даты (DatePicker работает с Date).
+public func makeDate(day: CalendarDay, calendar: Calendar) -> Date {
+    let components = DateComponents(year: day.year, month: day.month, day: day.day)
+    guard let date = calendar.date(from: components) else {
+        preconditionFailure("CalendarDay всегда настоящая дата, Calendar обязан её построить")
+    }
+    return date
+}
+
 /// «1 234 567 ₸» или «6 933,41 ₸»: копейки показываем, только если они есть, и тогда всегда двумя цифрами.
 public func formatTenge(_ amount: Decimal) -> String {
     let fractionDigits = roundAmount(amount, fractionDigits: 0) == amount ? 0 : 2

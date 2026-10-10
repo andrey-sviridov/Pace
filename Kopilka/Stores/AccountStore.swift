@@ -39,4 +39,10 @@ final class AccountStore {
         account.anchorDay = day
         try context.save()
     }
+
+    /// «Сверить остаток»: запись-корректировка на разницу (её строит makeAdjustment в ядре).
+    func addAdjustment(_ entry: JournalEntry) throws {
+        context.insert(entry)
+        try context.save()
+    }
 }

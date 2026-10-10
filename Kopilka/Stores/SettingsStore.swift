@@ -6,7 +6,7 @@ import KopilkaCore
 /// Настройки приложения: одна запись `AppSettings` в базе. Экраны меняют её поля напрямую и вызывают `save()`.
 @Observable
 final class SettingsStore {
-    let settings: AppSettings
+    private(set) var settings: AppSettings
     private let context: ModelContext
 
     init(context: ModelContext) throws {
@@ -16,6 +16,23 @@ final class SettingsStore {
 
     func save() throws {
         try context.save()
+    }
+
+    /// После «Начать заново» и восстановления копии старая запись настроек удалена — берём (или создаём) новую.
+    func reloadSettings() throws {
+        settings = try findOrCreateSettings(context: context)
+    }
+
+    /// Одна настройка — одно поле. Не сохранилось — возвращаем прежнее значение, как в updatePeriodMode.
+    func update<Value>(_ field: ReferenceWritableKeyPath<AppSettings, Value>, to value: Value) throws {
+        let previousValue = settings[keyPath: field]
+        settings[keyPath: field] = value
+        do {
+            try context.save()
+        } catch {
+            settings[keyPath: field] = previousValue
+            throw error
+        }
     }
 
     /// Не сохранилось — возвращаем прежний режим, иначе экран показывал бы режим, которого нет в базе.

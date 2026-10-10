@@ -27,6 +27,22 @@ final class JournalStore {
         return try KopilkaCore.importStatement(statement, mode: mode, context: context, now: Date())
     }
 
+    // MARK: - Резервная копия и сброс
+
+    func makeBackup() throws -> Data {
+        try KopilkaCore.makeBackup(context: context)
+    }
+
+    /// Заменяет все данные копией. Настройки тоже заменяются — экран после этого перечитывает их из SettingsStore.
+    func restoreBackup(_ data: Data) throws {
+        try KopilkaCore.restoreBackup(data, context: context)
+    }
+
+    /// «Начать заново»: операции, счета, категории, правила и настройки стираются целиком.
+    func eraseAllData() throws {
+        try KopilkaCore.eraseAllData(context: context)
+    }
+
     // MARK: - Чтение
 
     /// Записи периода, новые сверху.

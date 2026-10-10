@@ -1,7 +1,7 @@
 import SwiftUI
 import KopilkaCore
 
-/// Четыре вкладки приложения (спека §8). Настройки пока заглушка (задача 17).
+/// Четыре вкладки приложения (спека §8).
 /// Вкладка и путь главной приходят сверху: итог импорта открывает «Проверьте новое» на главной.
 struct MainTabView: View {
     let today: CalendarDay
@@ -21,7 +21,7 @@ struct MainTabView: View {
             AnalyticsScreen(today: today)
                 .tabItem { Label("Аналитика", systemImage: "chart.bar") }
                 .tag(MainTab.analytics)
-            PlaceholderScreen(title: "Настройки", text: "Тема, период, источники.")
+            SettingsScreen(today: today)
                 .tabItem { Label("Настройки", systemImage: "gearshape") }
                 .tag(MainTab.settings)
         }

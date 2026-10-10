@@ -148,4 +148,17 @@ import Testing
         #expect(try makeSnapshot(context) == before)
         #expect(try makeSnapshot(ModelContext(container)) == before)
     }
+
+    @Test func eraseAllDataLeavesEmptyDatabase() throws {
+        let context = try makeContext()
+        try fillContext(context)
+
+        try eraseAllData(context: context)
+
+        #expect(try makeSnapshot(context).isEmpty)
+        #expect(try context.fetchCount(FetchDescriptor<JournalEntry>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<SourceRecord>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<Account>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<AppSettings>()) == 0)
+    }
 }
