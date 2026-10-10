@@ -26,8 +26,7 @@ struct HomeScreen: View {
 
     var body: some View {
         let settings = settingsStore.settings
-        // Те же границы аванса и разовой премии, что у импорта: иначе периоды разошлись бы с правилами переводов.
-        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: SalaryDetection.advanceDayRange, oneOffAboveMedianTimes: SalaryDetection.oneOffAboveMedianTimes)
         // С авансом главная цифра — до ближайшего поступления (аванса или зарплаты), а месяц — строкой ниже.
         let heroMode: PeriodMode = settings.hasAdvance ? .halfMonth : settings.periodMode
         let numbers = calculateHomeNumbers(

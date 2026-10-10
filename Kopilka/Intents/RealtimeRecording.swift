@@ -56,7 +56,7 @@ func makeIntentRemainingText(for entry: JournalEntry, settings: AppSettings, now
     let entries = try context.fetch(FetchDescriptor<JournalEntry>())
     let categories = try context.fetch(FetchDescriptor<SpendingCategory>())
     let today = makeCalendarDay(date: now, calendar: .current)
-    let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+    let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: SalaryDetection.advanceDayRange, oneOffAboveMedianTimes: SalaryDetection.oneOffAboveMedianTimes)
     let period = makePeriod(containing: today, mode: settings.periodMode, salaryEvents: salaryEvents)
     let statuses = calculateLimitStatuses(period: period, today: today, mode: settings.periodMode, entries: entries, categories: categories)
     return makeRemainingAfterPaymentText(categoryId: entry.categoryId, statuses: statuses) ?? ""

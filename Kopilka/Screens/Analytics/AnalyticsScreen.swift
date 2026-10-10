@@ -28,7 +28,7 @@ struct AnalyticsScreen: View {
     var body: some View {
         let mode = settingsStore.settings.periodMode
         // Те же границы аванса и разовой премии, что у главной и импорта.
-        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: SalaryDetection.advanceDayRange, oneOffAboveMedianTimes: SalaryDetection.oneOffAboveMedianTimes)
         let period = makePeriod(containing: shownDay ?? today, mode: mode, salaryEvents: salaryEvents)
         let previousPeriod = makePreviousPeriod(before: period, mode: mode, salaryEvents: salaryEvents)
         let nextPeriod = makeNextPeriod(after: period, today: today, mode: mode, salaryEvents: salaryEvents)

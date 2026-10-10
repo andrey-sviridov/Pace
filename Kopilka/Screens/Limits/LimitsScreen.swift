@@ -21,7 +21,7 @@ struct LimitsScreen: View {
         let settings = settingsStore.settings
         let monthlySavingsGoal = settings.monthlySavingsGoal
         // Те же границы аванса и разовой премии, что у главной и импорта.
-        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: SalaryDetection.advanceDayRange, oneOffAboveMedianTimes: SalaryDetection.oneOffAboveMedianTimes)
         // Обязательные считаем от начала текущего периода, как главная: иначе «Не распределено» разошлось бы с её резервом.
         let currentPeriod = makePeriod(containing: today, mode: settings.periodMode, salaryEvents: salaryEvents)
         let income = calculateTypicalMonthlyIncome(entries: entries, categories: categories, before: today, monthCount: 3)

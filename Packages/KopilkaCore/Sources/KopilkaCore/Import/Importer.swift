@@ -80,8 +80,8 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
         // Проход 2: правила сумм для переводов на другую карту.
         let salaryEvents = findSalaryEvents(
             entries: try loadEntries(of: account, context: context),
-            advanceDayRange: 10...20,
-            oneOffAboveMedianTimes: 1.5
+            advanceDayRange: SalaryDetection.advanceDayRange,
+            oneOffAboveMedianTimes: SalaryDetection.oneOffAboveMedianTimes
         )
         let transfers = zip(newEntries, freshKinds).filter { entry, kind in kind == .transferToOtherCard }.map { entry, kind in entry }
         let transferRules = transfers.map { entry in

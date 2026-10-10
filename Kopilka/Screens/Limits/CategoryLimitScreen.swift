@@ -24,7 +24,7 @@ struct CategoryLimitScreen: View {
 
     var body: some View {
         // Те же границы аванса и разовой премии, что у главной и импорта.
-        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: 10...20, oneOffAboveMedianTimes: 1.5)
+        let salaryEvents = findSalaryEvents(entries: entries, advanceDayRange: SalaryDetection.advanceDayRange, oneOffAboveMedianTimes: SalaryDetection.oneOffAboveMedianTimes)
         let periods = makeLimitHistoryPeriods(today: today, mode: settingsStore.settings.periodMode, salaryEvents: salaryEvents, count: 6)
         let history = calculateCategoryHistory(categoryId: category.id, periods: periods, entries: entries, categories: categories)
         // Среднее — по тем же столбикам, что на графике: цифры на карточке совпадают с тем, что видно.
