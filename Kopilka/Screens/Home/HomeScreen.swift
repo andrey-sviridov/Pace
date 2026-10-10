@@ -147,6 +147,7 @@ private struct HomeBalances: View {
     }
 }
 
+/// Остаток счёта. Карандаш в углу — знак, что карточку можно нажать и сверить остаток с Homebank.
 private struct BalanceCard: View {
     let title: String
     let amount: Decimal
@@ -155,19 +156,23 @@ private struct BalanceCard: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.footnote)
-                    .foregroundStyle(theme.secondaryText)
+                HStack {
+                    Text(title)
+                        .font(.footnote)
+                        .foregroundStyle(theme.secondaryText)
+                    Spacer()
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(theme.accent.opacity(0.8))
+                }
                 MoneyText(amount: amount, style: .title)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                // Видимая подсказка: без неё непонятно, что карточку можно нажать и поправить остаток.
-                Label("Сверить", systemImage: "pencil")
-                    .font(.footnote)
-                    .foregroundStyle(theme.accent)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Сверить остаток")
     }
 }
 

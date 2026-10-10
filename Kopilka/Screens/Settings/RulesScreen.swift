@@ -83,7 +83,12 @@ private struct AmountRulesSection: View {
                     AmountRuleRow(rule: rule, targetName: makeTargetName(rule, namesById: namesById))
                 }
                 .swipeActions {
-                    Button("Удалить", role: .destructive) { delete(rule) }
+                    // Иконка вместо красного слова: удаление спокойное, правило всегда можно добавить снова.
+                    Button { delete(rule) } label: {
+                        Image(systemName: "trash")
+                    }
+                    .tint(.gray)
+                    .accessibilityLabel("Удалить правило")
                 }
             }
             Button("Добавить правило", action: onAdd)
@@ -244,7 +249,12 @@ private struct MerchantRulesSection: View {
                     }
                     .foregroundStyle(.primary)
                     .swipeActions {
-                        Button("Удалить", role: .destructive) { delete(rule) }
+                        // Иконка вместо красного слова: удаление спокойное, правило всегда можно добавить снова.
+                    Button { delete(rule) } label: {
+                        Image(systemName: "trash")
+                    }
+                    .tint(.gray)
+                    .accessibilityLabel("Удалить правило")
                     }
                 }
             } header: {
