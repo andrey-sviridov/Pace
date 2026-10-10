@@ -18,9 +18,16 @@ final class SettingsStore {
         try context.save()
     }
 
+    /// Не сохранилось — возвращаем прежний режим, иначе экран показывал бы режим, которого нет в базе.
     func updatePeriodMode(_ mode: PeriodMode) throws {
+        let previousMode = settings.periodMode
         settings.periodMode = mode
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            settings.periodMode = previousMode
+            throw error
+        }
     }
 
     /// Признак ставим только вместе с успешным сохранением: иначе экран ушёл бы на вкладки, а база осталась без настройки.

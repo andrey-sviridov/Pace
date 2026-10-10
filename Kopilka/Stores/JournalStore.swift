@@ -39,9 +39,9 @@ final class JournalStore {
 
     /// «Проверьте новое»: всё, что пользователь ещё не подтвердил.
     func loadUnreviewed() throws -> [JournalEntry] {
-        let entries = try loadVisibleEntries()
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
         return entries
-            .filter { entry in !entry.isReviewed }
+            .filter { entry in isAwaitingReview(entry) }
             .sorted { first, second in isShownEarlier(first, than: second) }
     }
 

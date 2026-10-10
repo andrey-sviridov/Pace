@@ -1,4 +1,5 @@
 import SwiftUI
+import KopilkaCore
 
 /// Сумма в тенге: «6 933,41 ₸». Цифры одной ширины, чтобы суммы в столбик не прыгали.
 struct MoneyText: View {

@@ -59,3 +59,8 @@ public final class JournalEntry {
         self.createdAt = createdAt
     }
 }
+
+/// Ждёт ли запись «Проверьте новое»: не подтверждена и не склеена в другую (склеенная — только хранилище ключей источников).
+public func isAwaitingReview(_ entry: JournalEntry) -> Bool {
+    !entry.isReviewed && entry.mergedInto == nil
+}

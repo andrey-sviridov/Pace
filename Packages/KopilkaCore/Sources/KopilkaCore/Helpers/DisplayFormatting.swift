@@ -11,6 +11,17 @@ public func makeCalendarDay(date: Date, calendar: Calendar) -> CalendarDay {
     return CalendarDay(year: year, month: month, day: day)
 }
 
+/// «1 234 567 ₸» или «6 933,41 ₸»: копейки показываем, только если они есть, и тогда всегда двумя цифрами.
+public func formatTenge(_ amount: Decimal) -> String {
+    let fractionDigits = roundAmount(amount, fractionDigits: 0) == amount ? 0 : 2
+    let number = amount.formatted(
+        .number
+            .precision(.fractionLength(fractionDigits))
+            .locale(Locale(identifier: "ru_RU"))
+    )
+    return "\(number) ₸"
+}
+
 /// Сумма в тысячах для легенд и лимитов: «800», «1,5k», «42k», «1 235k».
 public func formatThousands(_ amount: Decimal) -> String {
     guard abs(amount) >= 1000 else {

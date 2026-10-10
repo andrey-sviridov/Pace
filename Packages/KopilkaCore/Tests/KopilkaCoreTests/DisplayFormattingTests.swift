@@ -65,3 +65,16 @@ import Testing
         #expect(roundDownToWholeTenge(500) == 500)
     }
 }
+
+@Suite struct TengeFormattingTests {
+    @Test func showsKopecksOnlyWhenPresent() {
+        #expect(formatTenge(1_234_567) == "1\u{00A0}234\u{00A0}567 ₸")
+        #expect(formatTenge(Decimal(string: "6933.41")!) == "6\u{00A0}933,41 ₸")
+        #expect(formatTenge(Decimal(string: "10.5")!) == "10,50 ₸")
+    }
+
+    @Test func roundsOverspendUp() {
+        #expect(roundUpToWholeTenge(Decimal(string: "5000.30")!) == 5_001)
+        #expect(roundUpToWholeTenge(5_000) == 5_000)
+    }
+}

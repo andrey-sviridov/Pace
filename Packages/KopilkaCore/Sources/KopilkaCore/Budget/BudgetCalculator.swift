@@ -179,6 +179,14 @@ public func roundDownToWholeTenge(_ amount: Decimal) -> Decimal {
     return rounded
 }
 
+/// Вверх до целого тенге: перерасход не преуменьшаем.
+public func roundUpToWholeTenge(_ amount: Decimal) -> Decimal {
+    var source = amount
+    var rounded = Decimal()
+    NSDecimalRound(&rounded, &source, 0, .up)
+    return rounded
+}
+
 // MARK: - Лимиты
 
 /// Состояние лимитов категорий за период; категории без лимита не попадают. Самые потраченные — первыми.
