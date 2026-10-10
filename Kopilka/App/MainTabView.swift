@@ -15,7 +15,7 @@ struct MainTabView: View {
             HomeScreen(today: today, path: $homePath)
                 .tabItem { Label("Главная", systemImage: "house") }
                 .tag(MainTab.home)
-            JournalScreen()
+            JournalScreen(today: today)
                 .tabItem { Label("Журнал", systemImage: "list.bullet") }
                 .tag(MainTab.journal)
             AnalyticsScreen(today: today)

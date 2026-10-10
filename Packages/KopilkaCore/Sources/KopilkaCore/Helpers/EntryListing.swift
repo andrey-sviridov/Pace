@@ -70,11 +70,11 @@ public func formatSignedTenge(_ amount: Decimal, type: EntryType) -> String {
 /// «12 окт, пн» — заголовок дня в списках.
 public func formatDayWithWeekday(_ day: CalendarDay) -> String {
     let weekdayNames = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"]
-    return "\(formatShortDay(day)), \(weekdayNames[findWeekdayIndex(day)])"
+    return "\(formatShortDay(day)), \(weekdayNames[calculateWeekdayIndex(day)])"
 }
 
 /// 0 — воскресенье, как у `Calendar.weekday - 1`. Календарь в GMT: нужен только день недели даты, без часовых поясов.
-private func findWeekdayIndex(_ day: CalendarDay) -> Int {
+func calculateWeekdayIndex(_ day: CalendarDay) -> Int {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = .gmt
     let components = DateComponents(year: day.year, month: day.month, day: day.day)

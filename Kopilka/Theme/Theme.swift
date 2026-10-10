@@ -14,6 +14,8 @@ struct Theme {
     let normal: Color
     let warning: Color
     let over: Color
+    /// Доход: «+402k» в календаре журнала.
+    let income: Color
     /// Шрифт главной цифры «Можно потратить».
     let heroFont: Font
     let cornerRadius: CGFloat
@@ -45,6 +47,7 @@ extension Theme {
         normal: Color(hex: 0x2A78D6),
         warning: Color(hex: 0xEDA100),
         over: Color(hex: 0xE34948),
+        income: Color(hex: 0x1E8E4F),
         heroFont: .system(size: 28, weight: .semibold),
         cornerRadius: 14
     )
@@ -60,6 +63,7 @@ extension Theme {
         normal: Color(hex: 0x3987E5),
         warning: Color(hex: 0xC98500),
         over: Color(hex: 0xE66767),
+        income: Color(hex: 0x30C06A),
         heroFont: .system(size: 28, weight: .semibold),
         cornerRadius: 14
     )
@@ -75,6 +79,7 @@ extension Theme {
         normal: Color(hex: 0x1BAF7A),
         warning: Color(hex: 0xEDA100),
         over: Color(hex: 0xE66767),
+        income: Color(hex: 0x1BAF7A),
         heroFont: .system(size: 28, weight: .semibold),
         cornerRadius: 16
     )
@@ -90,6 +95,7 @@ extension Theme {
         normal: Color(hex: 0x3F6B4E),
         warning: Color(hex: 0xB7791F),
         over: Color(hex: 0xB4472F),
+        income: Color(hex: 0x3F6B4E),
         heroFont: .system(size: 28, weight: .regular, design: .serif),
         cornerRadius: 10
     )
@@ -105,6 +111,7 @@ extension Theme {
         normal: Color(hex: 0x7FA88A),
         warning: Color(hex: 0xD69A3A),
         over: Color(hex: 0xD2694F),
+        income: Color(hex: 0x7FA88A),
         heroFont: .system(size: 28, weight: .regular, design: .serif),
         cornerRadius: 10
     )

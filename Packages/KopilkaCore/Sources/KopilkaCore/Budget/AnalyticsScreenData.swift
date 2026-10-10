@@ -41,11 +41,13 @@ public func hasEntries(before day: CalendarDay, entries: [JournalEntry]) -> Bool
     entries.contains { entry in entry.mergedInto == nil && entry.day < day }
 }
 
+/// Названия месяцев в именительном падеже — для заголовков («Сентябрь 2026»).
+let nominativeMonthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+
 /// «Сентябрь», «Октябрь 2025»: месяц, на который приходится середина периода; год — только если не текущий.
 public func formatPeriodTitle(_ period: Period, today: CalendarDay) -> String {
-    let monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
     let middleDay = findMiddleDay(of: period)
-    let monthName = monthNames[middleDay.month - 1]
+    let monthName = nominativeMonthNames[middleDay.month - 1]
     guard middleDay.year != today.year else { return monthName }
     return "\(monthName) \(middleDay.year)"
 }

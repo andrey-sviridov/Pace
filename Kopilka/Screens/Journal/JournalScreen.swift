@@ -5,7 +5,8 @@ import KopilkaCore
 /// Журнал (спека §8): все записи по дням, поиск по названию, фильтр по категории, счёту и источнику.
 /// Склеенные записи (`mergedInto`) не показываем — они только хранят ключи источников.
 struct JournalScreen: View {
-    @Environment(SettingsStore.self) private var settingsStore
+    let today: CalendarDay
+
     @Environment(\.theme) private var theme
 
     @Query private var entries: [JournalEntry]
@@ -14,6 +15,7 @@ struct JournalScreen: View {
 
     @State private var query = ""
     @State private var filter = JournalFilter()
+    @State private var isCalendarShown = false
 
     var body: some View {
         let visibleEntries = entries.filter { entry in entry.mergedInto == nil }
@@ -22,30 +24,22 @@ struct JournalScreen: View {
         let categoryNamesById = makeCategoryNamesById(categories)
 
         NavigationStack {
-            List {
-                ForEach(groups) { group in
-                    Section(formatDayWithWeekday(group.day)) {
-                        ForEach(group.entries, id: \.id) { entry in
-                            NavigationLink(value: entry) {
-                                JournalRow(
-                                    entry: entry,
-                                    categoryName: makeCategoryName(categoryId: entry.categoryId, namesById: categoryNamesById),
-                                    isTimeShown: settingsStore.settings.shouldShowOperationTime,
-                                    theme: theme
-                                )
-                            }
-                            .listRowBackground(theme.card)
-                        }
-                    }
+            VStack(spacing: 0) {
+                Picker("Вид", selection: $isCalendarShown) {
+                    Text("Список").tag(false)
+                    Text("Календарь").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+                if isCalendarShown {
+                    // Поиск и фильтр действуют и на календарь: можно смотреть по дням одну категорию.
+                    JournalCalendar(today: today, entries: foundEntries, categories: categories)
+                } else {
+                    JournalList(groups: groups, categoryNamesById: categoryNamesById)
                 }
             }
-            .scrollContentBackground(.hidden)
             .background(theme.background)
-            .overlay {
-                if groups.isEmpty {
-                    ContentUnavailableView("Ничего не нашлось", systemImage: "magnifyingglass", description: Text("Измените поиск или фильтр."))
-                }
-            }
             .searchable(text: $query, prompt: "Найти по названию")
             .navigationTitle("Журнал")
             .toolbar {
@@ -55,6 +49,41 @@ struct JournalScreen: View {
             }
             .navigationDestination(for: JournalEntry.self) { entry in
                 EntryDetailScreen(entry: entry)
+            }
+        }
+    }
+}
+
+/// Записи по дням, новые сверху.
+private struct JournalList: View {
+    let groups: [DayGroup]
+    let categoryNamesById: [String: String]
+
+    @Environment(SettingsStore.self) private var settingsStore
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+                List {
+                    ForEach(groups) { group in
+                        Section(formatDayWithWeekday(group.day)) {
+                            ForEach(group.entries, id: \.id) { entry in
+                                NavigationLink(value: entry) {
+                                    JournalRow(
+                                        entry: entry,
+                                        categoryName: makeCategoryName(categoryId: entry.categoryId, namesById: categoryNamesById),
+                                        isTimeShown: settingsStore.settings.shouldShowOperationTime,
+                                        theme: theme
+                                    )
+                                }
+                                .listRowBackground(theme.card)
+                            }
+                        }
+                    }
+                }
+        .scrollContentBackground(.hidden)
+        .overlay {
+            if groups.isEmpty {
+                ContentUnavailableView("Ничего не нашлось", systemImage: "magnifyingglass", description: Text("Измените поиск или фильтр."))
             }
         }
     }
@@ -98,7 +127,7 @@ private func isMatching(_ entry: JournalEntry, filter: JournalFilter) -> Bool {
 
 // MARK: - Части экрана
 
-private struct JournalRow: View {
+struct JournalRow: View {
     let entry: JournalEntry
     let categoryName: String
     let isTimeShown: Bool
