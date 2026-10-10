@@ -25,6 +25,8 @@ func makeErrorMessage(_ error: Error) -> String {
         return "Это не похоже на выписку Halyk. Ничего не записано."
     case StatementError.totalsMismatch(let expected, let actual):
         return makeTotalsMismatchMessage(expected: expected, actual: actual)
+    case ImportError.depositStatementNotSupported:
+        return "Выписку депозита Копилка пока не разбирает — пришлите её пример, добавим. Остаток депозита можно сверить на главной: нажмите на карточку «Депозит»."
     case ImportError.unknownAccount(let number):
         return "Выписка по счёту \(number), которого нет в приложении. Ничего не записано."
     case SetupError.historyIsNotCardStatement:

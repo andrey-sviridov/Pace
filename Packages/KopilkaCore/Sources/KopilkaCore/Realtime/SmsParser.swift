@@ -19,19 +19,20 @@ public func parseSms(_ text: String) -> ParsedSms? {
 }
 
 /// Запись для экрана «Проверьте новое», когда SMS не разобралось.
-/// Единственное место, где сумма равна нулю (в остальном она всегда больше нуля): это заглушка,
-/// а вид «корректировка» вместе с `affectsBalance = false` выводит её из всех денежных расчётов.
 public func makeUnparsedSmsEntry(text: String, now: Date, calendar: Calendar) -> JournalEntry {
-    let components = calendar.dateComponents([.year, .month, .day], from: now)
-    guard let year = components.year, let month = components.month, let day = components.day else {
-        preconditionFailure("Calendar обязан вернуть год, месяц и день")
-    }
+    makeUnparsedRealtimeEntry(kind: .sms, title: "SMS не разобрано", text: text, now: now, calendar: calendar)
+}
+
+/// Заглушка для «Проверьте новое», когда «Команда» прислала то, что нельзя записать как деньги
+/// (SMS не разобралось, оплата в другой валюте). Единственное место, где сумма равна нулю:
+/// вид «корректировка» вместе с `affectsBalance = false` выводит её из всех денежных расчётов.
+public func makeUnparsedRealtimeEntry(kind: SourceKind, title: String, text: String, now: Date, calendar: Calendar) -> JournalEntry {
     let entry = JournalEntry(
-        day: CalendarDay(year: year, month: month, day: day),
+        day: makeCalendarDay(date: now, calendar: calendar),
         time: now,
         type: .adjustment,
         amount: 0,
-        title: "SMS не разобрано",
+        title: title,
         categoryId: nil,
         note: text,
         isReviewed: false,
@@ -39,8 +40,8 @@ public func makeUnparsedSmsEntry(text: String, now: Date, calendar: Calendar) ->
         createdAt: now
     )
     let source = SourceRecord(
-        kind: .sms,
-        key: "sms:unparsed:\(ISO8601DateFormatter().string(from: now)):\(text)",
+        kind: kind,
+        key: "\(kind.rawValue):unparsed:\(ISO8601DateFormatter().string(from: now)):\(text)",
         receivedAt: now,
         rawText: text
     )

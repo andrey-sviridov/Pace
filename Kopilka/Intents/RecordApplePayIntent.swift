@@ -34,16 +34,31 @@ struct RecordApplePayIntent: AppIntent {
         }
 
         let now = Date()
+        let rawText = "\(merchant) · \(amount) \(currency) · \(card)"
+        // Сумму в другой валюте нельзя записать как тенге: курс узнаем только из выписки.
+        // Оставляем заглушку в «Проверьте новое», выписка потом принесёт сумму в тенге.
+        guard isTenge(currency) else {
+            let title = "Оплата в \(currency.uppercased()) — дождитесь выписки"
+            context.insert(makeUnparsedRealtimeEntry(kind: .applePay, title: title, text: rawText, now: now, calendar: .current))
+            try context.save()
+            return .result(value: "")
+        }
+
         let entry = try recordIntentOperation(
             kind: .applePay,
             type: .expense,
             amount: amountTenge,
             rawMerchant: merchant,
-            rawText: "\(merchant) · \(amount) \(currency) · \(card)",
+            rawText: rawText,
             now: now,
             context: context
         )
         let remainingText = try makeIntentRemainingText(for: entry, settings: settings, now: now, context: context)
         return .result(value: remainingText)
     }
+}
+
+private func isTenge(_ currency: String) -> Bool {
+    let normalizedCurrency = currency.trimmingCharacters(in: .whitespaces).uppercased()
+    return normalizedCurrency.isEmpty || normalizedCurrency == "KZT" || normalizedCurrency == "₸"
 }

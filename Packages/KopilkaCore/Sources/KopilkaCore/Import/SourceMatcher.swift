@@ -69,8 +69,15 @@ public func mergeEntries(keep: JournalEntry, remove: JournalEntry, allEntries: [
     guard keep !== remove else { throw MergeError.sameEntry }
     guard keep.mergedInto == nil, remove.mergedInto == nil else { throw MergeError.entryAlreadyMerged }
 
+    // Смотрим до переноса источников: потом у `remove` их уже не будет.
+    let isStatementAmountOnRemoved = hasSource(remove, kind: .statement) && !hasSource(keep, kind: .statement)
+
     for source in remove.sources {
         source.entry = keep
+    }
+    // Сумма выписки точнее (чаевые, холд, конвертация валюты): если она у склеиваемой записи — берём её.
+    if isStatementAmountOnRemoved {
+        keep.amount = remove.amount
     }
     // Комиссию знает только выписка: если её принёс второй источник, без переноса остаток разошёлся бы на сумму комиссии.
     if remove.feeAmount > 0 && keep.feeAmount == 0 {
@@ -100,12 +107,18 @@ private func hasSource(_ entry: JournalEntry, kind: SourceKind) -> Bool {
 }
 
 /// Время есть у обеих сторон (Apple Pay, SMS) — сравниваем минуты, иначе только дни.
+/// Строка выписки не может быть раньше самой оплаты: банк проводит операцию в тот же день или позже.
+/// Без этого ежедневный кофе сегодня прилипал бы к вчерашней строке выписки, и сегодняшняя трата пропадала.
 private func isWithinTime(_ entry: JournalEntry, incoming: IncomingOperation, realtimeWindowMinutes: Int, statementWindowDays: Int) -> Bool {
     if let entryTime = entry.time, let incomingTime = incoming.time {
         let minutesApart = abs(entryTime.timeIntervalSince(incomingTime)) / 60
         return minutesApart <= Double(realtimeWindowMinutes)
     }
-    return abs(entry.day.daysUntil(incoming.day)) <= statementWindowDays
+    let isIncomingFromStatement = incoming.kind == .statement
+    let paymentDay = isIncomingFromStatement ? entry.day : incoming.day
+    let statementDay = isIncomingFromStatement ? incoming.day : entry.day
+    let daysFromPaymentToStatement = paymentDay.daysUntil(statementDay)
+    return daysFromPaymentToStatement >= 0 && daysFromPaymentToStatement <= statementWindowDays
 }
 
 /// У переводов продавца нет, поэтому пустой ключ подходит к любому.

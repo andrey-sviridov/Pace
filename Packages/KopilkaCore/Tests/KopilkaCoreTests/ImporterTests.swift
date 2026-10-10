@@ -30,7 +30,7 @@ import Testing
     }
 
     // Итоги считаем из строк, чтобы checkTotals проходил; для проверки расхождения их подменяют.
-    private func makeStatement(rows: [StatementRow], accountNumber: String = "KZ126010002008249310", accountType: String = "Текущий счет", totals: StatementTotals? = nil) -> ParsedStatement {
+    private func makeStatement(rows: [StatementRow], accountNumber: String = "KZ126010002008249310", accountType: String = "Текущий счет", totals: StatementTotals? = nil, availableAmount: Decimal? = nil) -> ParsedStatement {
         let rowTotals = StatementTotals(
             income: rows.reduce(Decimal(0)) { sum, row in sum + row.incomeAmount },
             expense: rows.reduce(Decimal(0)) { sum, row in sum + row.expenseAmount },
@@ -44,7 +44,7 @@ import Testing
             generatedOn: CalendarDay(dotted: "31.07.2026")!,
             openingBalance: 0,
             closingBalance: 0,
-            availableAmount: nil,
+            availableAmount: availableAmount,
             totals: totals ?? rowTotals
         )
         return ParsedStatement(header: header, rows: rows)
@@ -208,24 +208,41 @@ import Testing
         #expect(accounts.count == 2)
     }
 
-    @Test func depositStatementAdoptsDepositCreatedByCardImport() throws {
+    @Test func depositStatementIsRefusedAndWritesNothing() throws {
+        // Формат выписки депозита ещё не известен: встречные перемещения с выпиской карты не склеились бы,
+        // депозит задвоился бы. Пока честно отказываем, остаток депозита сверяется вручную.
         let context = try makeContext()
         _ = try importStatement(makeSixRowStatement(), mode: .initialHistory, context: context, now: importedAt)
+        let entryCountBefore = try context.fetchCount(FetchDescriptor<JournalEntry>())
         let depositStatement = makeStatement(
             rows: [makeRow("15.07.2026", "Пополнение депозита", operationAmount: 100_000, income: 100_000, card: "KZ999")],
             accountNumber: "KZ999",
             accountType: "Сберегательный депозит"
         )
 
-        let result = try importStatement(depositStatement, mode: .regular, context: context, now: importedAt)
+        #expect(throws: ImportError.depositStatementNotSupported) {
+            try importStatement(depositStatement, mode: .regular, context: context, now: importedAt)
+        }
+        #expect(try context.fetchCount(FetchDescriptor<JournalEntry>()) == entryCountBefore)
+    }
 
-        let deposits = try context.fetch(FetchDescriptor<Account>()).filter { account in account.kind == .deposit }
-        #expect(result.accountKind == .deposit)
-        #expect(result.addedCount == 1)
-        #expect(deposits.count == 1)
-        #expect(deposits.first?.number == "KZ999")
-        #expect(deposits.first?.title == "Депозит")
-        #expect(try findEntry(titled: "На депозит", in: context).counterAccount?.number == "KZ999")
+    @Test func firstRegularImportSetsAnchorOfAccountWithoutIt() throws {
+        // Счёт добавлен вручную в «Мои счета»: без точки отсчёта его остаток навсегда был бы 0.
+        let context = try makeContext()
+        let account = Account(kind: .card, title: "Карта *4512", number: "KZ555")
+        context.insert(account)
+        let statement = makeStatement(
+            rows: [makeRow("20.07.2026", "Операция оплаты у коммерсанта ARBUZ", operationAmount: -700, expense: -700, card: "KZ555")],
+            accountNumber: "KZ555",
+            availableAmount: 50_000
+        )
+
+        _ = try importStatement(statement, mode: .regular, context: context, now: importedAt)
+
+        let entries = try context.fetch(FetchDescriptor<JournalEntry>())
+        #expect(account.anchorDay == CalendarDay(dotted: "31.07.2026"))
+        #expect(account.anchorBalance == 50_000)
+        #expect(calculateBalance(account: account, entries: entries) == 50_000)
     }
 
     @Test func purchaseRowWithIncomeIsRefund() throws {
@@ -355,6 +372,43 @@ import Testing
         let setup = makeStatement(rows: [makeRow("01.08.2026", "Операция оплаты у коммерсанта ARBUZ", operationAmount: -700, expense: -700)])
         _ = try importStatement(setup, mode: .initialHistory, context: context, now: importedAt)
         return try #require(try context.fetch(FetchDescriptor<Account>()).first)
+    }
+
+    @Test func statementCorrectsUnreviewedRealtimeGuess() throws {
+        // SMS решило, что 200 000 — зарплата (больше половины медианы); выписка знает, что это перевод от человека.
+        let context = try importSetupContext()
+        let account = try #require(try context.fetch(FetchDescriptor<Account>()).first)
+        let smsGuess = JournalEntry(
+            day: CalendarDay(dotted: "11.08.2026")!, time: Date(timeIntervalSince1970: 1_800_000_000), type: .income,
+            amount: 200_000, account: account, title: "Зачисление", categoryId: "salary", isReviewed: false, createdAt: importedAt
+        )
+        context.insert(smsGuess)
+        smsGuess.sources = [SourceRecord(kind: .sms, key: "sms-1", receivedAt: importedAt)]
+        let statement = makeStatement(rows: [makeRow("11.08.2026", "Поступление перевода", operationAmount: 200_000, income: 200_000)])
+
+        let result = try importStatement(statement, mode: .regular, context: context, now: importedAt)
+
+        #expect(result.attachedCount == 1)
+        #expect(smsGuess.categoryId == "incomingTransfers")
+        #expect(smsGuess.title == "Перевод от человека")
+        #expect(smsGuess.isReviewed)
+    }
+
+    @Test func statementKeepsUserReviewedTitle() throws {
+        let context = try importSetupContext()
+        let account = try #require(try context.fetch(FetchDescriptor<Account>()).first)
+        let applePay = addApplePayEntry(account: account, context: context)
+        applePay.title = "Мой магазин у дома"
+
+        _ = try importStatement(makeStatement(rows: [makeMagnumRow()]), mode: .regular, context: context, now: importedAt)
+
+        #expect(applePay.title == "Мой магазин у дома")
+    }
+
+    private func importSetupContext() throws -> ModelContext {
+        let context = try makeContext()
+        _ = try importSetupAccount(context: context)
+        return context
     }
 
     @Test func twoIdenticalRowsAttachToTwoApplePayEntries() throws {

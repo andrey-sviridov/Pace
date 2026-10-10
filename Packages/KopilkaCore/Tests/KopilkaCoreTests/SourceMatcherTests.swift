@@ -67,6 +67,33 @@ import Testing
         guard case .noMatch = fourDays else { Issue.record("через 4 дня ожидали noMatch"); return }
     }
 
+    @Test func applePayDoesNotAttachToEarlierStatementRow() {
+        // Ежедневный кофе: строка выписки за 09.08 уже есть, оплата 11.08 — это новая покупка, а не та же.
+        let statementCoffee = makeEntry(sources: [.statement], day: day.adding(days: -2))
+
+        let result = match(makeIncoming(.applePay, time: noon, day: day), [statementCoffee])
+
+        guard case .noMatch = result else { Issue.record("оплата позже строки выписки не должна склеиться"); return }
+    }
+
+    @Test func statementRowDoesNotAttachToLaterApplePay() {
+        let applePay = makeEntry(sources: [.applePay], time: noon, day: day)
+
+        let result = match(makeIncoming(.statement, day: day.adding(days: -1)), [applePay])
+
+        guard case .noMatch = result else { Issue.record("строка выписки раньше оплаты — другая операция"); return }
+    }
+
+    @Test func mergeWithDifferentAmountKeepsStatementAmount() throws {
+        // Apple Pay 1 500, а в выписке 1 650 (чаевые): после склейки остаётся сумма выписки.
+        let applePay = makeEntry(sources: [.applePay], time: noon, amount: 1500)
+        let statement = makeEntry(sources: [.statement], amount: 1650)
+
+        try mergeEntries(keep: applePay, remove: statement, allEntries: [applePay, statement])
+
+        #expect(applePay.amount == 1650)
+    }
+
     @Test func candidateWithSameSourceKindIsSkipped() {
         let alreadyHasSms = makeEntry(sources: [.sms], time: noon)
 

@@ -39,17 +39,17 @@ struct HomeScreen: View {
             accounts: accounts,
             salaryEvents: salaryEvents
         )
-        let monthBudget = settings.hasAdvance
-            ? calculateHomeNumbers(
-                today: today,
-                mode: settings.periodMode,
-                monthlySavingsGoal: settings.monthlySavingsGoal,
-                entries: entries,
-                categories: categories,
-                accounts: accounts,
-                salaryEvents: salaryEvents
-            ).budget
-            : nil
+        // Месяц нужен всегда: лимиты задаются на месяц и везде (карточка категории, «Команда») считаются по месяцу.
+        let monthNumbers = calculateHomeNumbers(
+            today: today,
+            mode: settings.periodMode,
+            monthlySavingsGoal: settings.monthlySavingsGoal,
+            entries: entries,
+            categories: categories,
+            accounts: accounts,
+            salaryEvents: salaryEvents
+        )
+        let monthBudget = settings.hasAdvance ? monthNumbers.budget : nil
 
         NavigationStack(path: $path) {
             ScrollView {
@@ -66,7 +66,7 @@ struct HomeScreen: View {
                         onTapDeposit: { reconciledAccount = accounts.first { account in account.kind == .deposit } }
                     )
                     // Четыре самых потраченных лимита: остальные — на экране «Все лимиты».
-                    HomeLimits(statuses: Array(numbers.limitStatuses.prefix(4)), theme: theme)
+                    HomeLimits(statuses: Array(monthNumbers.limitStatuses.prefix(4)), theme: theme)
                     if numbers.unreviewedCount > 0 {
                         HomeReviewLink(count: numbers.unreviewedCount, theme: theme)
                     }

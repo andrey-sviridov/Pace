@@ -97,39 +97,27 @@ struct RootView: View {
 
     /// Данные файла держим до ответа на «Неизвестный счёт»: файл в Inbox уже удалён, повтор идёт из памяти.
     /// Возвращает шапку загруженной выписки; не загрузилась — nil (ошибка или вопрос уже показаны).
-    @discardableResult
-    private func importSharedStatement(pdfData: Data) -> StatementHeader? {
+    private func importSharedStatement(pdfData: Data) {
         do {
             let statement = try journalStore.readStatement(pdfData: pdfData)
             importResult = try journalStore.importStatement(statement, mode: .regular)
-            return statement.header
         } catch ImportError.unknownAccount(let number) {
             unknownAccountImport = UnknownAccountImport(accountNumber: number, pdfData: pdfData)
-            return nil
         } catch {
             errorStore.show(error)
-            return nil
         }
     }
 
+    /// Точку отсчёта нового счёта ставит сам импорт (остаток из шапки выписки на дату формирования).
     private func addAccountAndImport(kind: AccountKind, pending: UnknownAccountImport) {
-        let account: Account
         do {
             let title = makeNewAccountTitle(kind: kind, accountNumber: pending.accountNumber)
-            account = try accountStore.addAccount(kind: kind, title: title, number: pending.accountNumber)
+            _ = try accountStore.addAccount(kind: kind, title: title, number: pending.accountNumber)
         } catch {
             errorStore.show(error)
             return
         }
-        guard let header = importSharedStatement(pdfData: pending.pdfData) else { return }
-        // Точка отсчёта ставится после импорта: строки выписки уже вошли в её остаток и остаток не меняют,
-        // а всё, что придёт после даты формирования, будет считаться от него.
-        do {
-            let balance = header.availableAmount ?? header.closingBalance
-            try accountStore.updateAnchor(account, balance: balance, day: header.generatedOn)
-        } catch {
-            errorStore.show(error)
-        }
+        importSharedStatement(pdfData: pending.pdfData)
     }
 
     /// «Проверить» в итоге импорта: главная, поверх неё «Проверьте новое».

@@ -32,3 +32,18 @@ import Testing
         #expect(makeRemainingAfterPaymentText(categoryId: nil, statuses: statuses) == nil)
     }
 }
+
+@Suite struct UnparsedRealtimeEntryTests {
+    @Test func foreignCurrencyApplePayBecomesPlaceholderForReview() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+        let entry = makeUnparsedRealtimeEntry(kind: .applePay, title: "Оплата в USD — проверьте", text: "AMAZON · 10.0 USD", now: now, calendar: Calendar(identifier: .gregorian))
+
+        #expect(entry.type == .adjustment)
+        #expect(entry.amount == 0)
+        #expect(!entry.affectsBalance)
+        #expect(!entry.isReviewed)
+        #expect(entry.title == "Оплата в USD — проверьте")
+        #expect(entry.sources.map { source in source.kind } == [.applePay])
+    }
+}

@@ -30,19 +30,29 @@ public func makeDayGroups(_ entries: [JournalEntry]) -> [DayGroup] {
     return groups
 }
 
-/// Кандидаты для «Это та же операция, что…»: видимые записи того же типа и с той же суммой в пределах `windowDays` от записи.
-/// Ближайшие по дате — сверху.
+/// Кандидаты для «Это та же операция, что…»: видимые записи того же типа, с близкой суммой (до 25 %),
+/// в пределах `windowDays` от записи. Ближайшие по дате, затем по сумме — сверху.
 public func findMergeCandidates(for entry: JournalEntry, among entries: [JournalEntry], windowDays: Int) -> [JournalEntry] {
     let candidates = entries.filter { other in
         other !== entry
             && other.mergedInto == nil
             && other.type == entry.type
-            && other.amount == entry.amount
+            && isCloseAmount(other.amount, entry.amount, maxDifferenceShare: 0.25)
             && abs(entry.day.daysUntil(other.day)) <= windowDays
     }
     return candidates.sorted { first, second in
-        abs(entry.day.daysUntil(first.day)) < abs(entry.day.daysUntil(second.day))
+        let firstDays = abs(entry.day.daysUntil(first.day))
+        let secondDays = abs(entry.day.daysUntil(second.day))
+        guard firstDays == secondDays else { return firstDays < secondDays }
+        return abs(first.amount - entry.amount) < abs(second.amount - entry.amount)
     }
+}
+
+/// Суммы Apple Pay и выписки могут расходиться на чаевые или холд — для ручной склейки этого достаточно.
+private func isCloseAmount(_ first: Decimal, _ second: Decimal, maxDifferenceShare: Decimal) -> Bool {
+    let larger = max(first, second)
+    guard larger > 0 else { return first == second }
+    return abs(first - second) / larger <= maxDifferenceShare
 }
 
 /// «−1 500 ₸» для расхода, «+1 500 ₸» для дохода; перемещение и корректировка — без знака.

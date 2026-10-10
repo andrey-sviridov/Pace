@@ -9,6 +9,8 @@ public enum ImportMode: Sendable {
 
 public enum ImportError: Error, Equatable {
     case unknownAccount(number: String)
+    /// Формат выписки депозита пока не известен — нужен реальный образец (спека §5.9).
+    case depositStatementNotSupported
 }
 
 public struct ImportResult: Equatable, Sendable {
@@ -36,6 +38,8 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
     var result: ImportResult?
     try context.transaction {
         try checkTotals(statement)
+        // Встречные перемещения карта ↔ депозит пока не склеиваются с выпиской депозита — депозит задвоился бы.
+        guard !isDepositStatement(statement.header) else { throw ImportError.depositStatementNotSupported }
         let account = try findOrCreateStatementAccount(statement, mode: mode, context: context)
         let merchantRules = try loadMerchantRules(context: context)
         let amountRules = try loadAmountRules(context: context)
@@ -92,6 +96,8 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
         for (entry, rule) in zip(transfers, transferRules) {
             updateEntry(entry, byAmountRule: rule, ownCardAccount: kaspiAccount)
         }
+
+        setAnchorIfMissing(account, header: statement.header, mode: mode)
 
         try context.save()
         result = ImportResult(
@@ -229,15 +235,10 @@ func makeEntry(
 // MARK: - Шаги импорта
 
 /// В начальной истории неизвестный счёт создаётся, в обычном импорте — ошибка (пользователь решает, что это за счёт).
-/// Выписка депозита забирает себе «Депозит» без номера, созданный импортом карты, — иначе остаток раздвоится.
 private func findOrCreateStatementAccount(_ statement: ParsedStatement, mode: ImportMode, context: ModelContext) throws -> Account {
     let header = statement.header
     if let account = try findAccount(number: header.accountNumber, context: context) {
         return account
-    }
-    if isDepositStatement(header), let unnumberedDeposit = try findAccount(kind: .deposit, number: "", context: context) {
-        unnumberedDeposit.number = header.accountNumber
-        return unnumberedDeposit
     }
     guard mode == .initialHistory else {
         throw ImportError.unknownAccount(number: header.accountNumber)
@@ -258,11 +259,6 @@ private func findOrCreateAccount(kind: AccountKind, title: String, isNeeded: Boo
     let account = Account(kind: kind, title: title, number: "")
     context.insert(account)
     return account
-}
-
-private func findAccount(kind: AccountKind, number: String, context: ModelContext) throws -> Account? {
-    let accounts = try context.fetch(FetchDescriptor<Account>())
-    return accounts.first { account in account.kind == kind && account.number == number }
 }
 
 /// Выписка депозита или карты — по полю «Тип счёта» в шапке.
@@ -351,12 +347,20 @@ private func findAttachTarget(_ match: MatchResult) -> JournalEntry? {
 }
 
 /// Источник выписки переезжает в существующую запись; сумма и баланс остаются от Apple Pay/SMS, комиссию знает только выписка.
+/// Название и категорию из SMS приложение угадывало, а выписка знает точно: если пользователь запись ещё не проверял,
+/// берём их из выписки (иначе перевод от родственников так и остался бы «зарплатой»).
 private func attachRows(_ plans: [RowPlan], receivedAt: Date) {
     for plan in plans {
         guard let target = findAttachTarget(plan.match) else { continue }
         target.sources.append(SourceRecord(row: plan.keyedRow.row, key: plan.keyedRow.key, receivedAt: receivedAt))
         if plan.entry.feeAmount > 0 {
             target.feeAmount = plan.entry.feeAmount
+        }
+        if !target.isReviewed {
+            target.title = plan.entry.title
+            target.categoryId = plan.entry.categoryId
+            target.merchantKey = plan.entry.merchantKey
+            target.isReviewed = plan.entry.isReviewed
         }
     }
 }
@@ -419,6 +423,15 @@ private func calculateFeeAmount(row: StatementRow, kind: OperationKind) -> Decim
 /// «Переводы людям» — временная категория для переводов без правила, их нужно разобрать.
 private func isReviewed(categoryId: String?) -> Bool {
     categoryId != nil && categoryId != "transfersToPeople"
+}
+
+/// Счёт без точки отсчёта (добавлен вручную или из вопроса «неизвестный счёт») получает её при первом обычном импорте:
+/// остаток — «Доступная сумма» из шапки на дату формирования. Строки этой выписки уже входят в эту сумму,
+/// поэтому они записаны с affectsBalance = false (точки ещё не было) — двойного счёта нет.
+private func setAnchorIfMissing(_ account: Account, header: StatementHeader, mode: ImportMode) {
+    guard mode == .regular, account.anchorDay == nil else { return }
+    account.anchorBalance = header.availableAmount ?? header.closingBalance
+    account.anchorDay = header.generatedOn
 }
 
 /// Спека §5.9: начальная история на остаток не влияет; потом — только операции с точки отсчёта.
