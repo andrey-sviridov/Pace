@@ -1,12 +1,15 @@
 import SwiftUI
+import KopilkaCore
 
-/// Четыре вкладки приложения (спека §8). Пока экраны — заглушки, их заменят задачи 13–17.
+/// Четыре вкладки приложения (спека §8). Журнал, аналитика и настройки пока заглушки (задачи 14, 16, 17).
 struct MainTabView: View {
+    let today: CalendarDay
+
     @Environment(\.theme) private var theme
 
     var body: some View {
         TabView {
-            PlaceholderScreen(title: "Главная", text: "Сколько можно потратить до зарплаты.")
+            HomeScreen(today: today)
                 .tabItem { Label("Главная", systemImage: "house") }
             PlaceholderScreen(title: "Журнал", text: "Все операции по дням.")
                 .tabItem { Label("Журнал", systemImage: "list.bullet") }

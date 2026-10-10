@@ -171,7 +171,8 @@ func calculatePerDay(freeToSpend: Decimal, daysLeft: Int) -> Decimal {
     return roundDownToWholeTenge(freeToSpend / Decimal(daysLeft))
 }
 
-private func roundDownToWholeTenge(_ amount: Decimal) -> Decimal {
+/// Вниз до целого тенге: показанная сумма никогда не больше настоящей.
+public func roundDownToWholeTenge(_ amount: Decimal) -> Decimal {
     var source = amount
     var rounded = Decimal()
     NSDecimalRound(&rounded, &source, 0, .down)

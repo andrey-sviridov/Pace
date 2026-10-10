@@ -78,3 +78,30 @@ private func findPeriodEnd(
     // Поступление опаздывает: период тянется, пока оно не придёт, иначе сегодня оказалось бы вне периода.
     return max(predictedEnd, day.adding(days: 1))
 }
+
+/// Какое поступление закрывает период — для подписи «до зарплаты / до аванса».
+/// Календарный месяц или нет истории поступлений — nil: период кончается вместе с месяцем.
+public func findPeriodEndKind(period: Period, mode: PeriodMode, salaryEvents: [SalaryEvent]) -> SalaryEventKind? {
+    let boundaryKinds: [SalaryEventKind]
+    switch mode {
+    case .calendarMonth:
+        return nil
+    case .salaryMonth:
+        boundaryKinds = [.salary]
+    case .halfMonth:
+        boundaryKinds = [.advance, .salary]
+    }
+
+    let actualEndEvent = salaryEvents.first { event in
+        boundaryKinds.contains(event.kind) && !event.isOneOff && event.day == period.endExclusive
+    }
+    if let actualEndEvent {
+        return actualEndEvent.kind
+    }
+
+    // Та же логика, что у findPeriodEnd: периоду конец кладёт ближайшее ожидаемое поступление.
+    let predictedEvents = boundaryKinds.compactMap { kind in
+        predictNextEvent(kind: kind, after: period.start, history: salaryEvents, lookbackCount: 3)
+    }
+    return predictedEvents.min { first, second in first.day < second.day }?.kind
+}

@@ -18,6 +18,11 @@ final class SettingsStore {
         try context.save()
     }
 
+    func updatePeriodMode(_ mode: PeriodMode) throws {
+        settings.periodMode = mode
+        try context.save()
+    }
+
     /// Признак ставим только вместе с успешным сохранением: иначе экран ушёл бы на вкладки, а база осталась без настройки.
     func saveSetupFinished() throws {
         settings.hasFinishedSetup = true

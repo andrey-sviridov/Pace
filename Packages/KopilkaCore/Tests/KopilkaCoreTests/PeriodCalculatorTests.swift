@@ -64,3 +64,46 @@ import Testing
         #expect(!period.contains(makeDay("30.09.2026")))
     }
 }
+
+@Suite struct PeriodEndKindTests {
+    private let history = [
+        makeSalaryEvent("15.08.2026", .advance, 150_000),
+        makeSalaryEvent("30.08.2026", .salary),
+        makeSalaryEvent("15.09.2026", .advance, 150_000),
+        makeSalaryEvent("30.09.2026", .salary),
+    ]
+
+    @Test func calendarMonthHasNoEndEvent() {
+        let period = makePeriod(containing: makeDay("09.10.2026"), mode: .calendarMonth, salaryEvents: history)
+        #expect(findPeriodEndKind(period: period, mode: .calendarMonth, salaryEvents: history) == nil)
+    }
+
+    @Test func salaryMonthEndsWithSalary() {
+        let period = makePeriod(containing: makeDay("09.10.2026"), mode: .salaryMonth, salaryEvents: history)
+        #expect(findPeriodEndKind(period: period, mode: .salaryMonth, salaryEvents: history) == .salary)
+    }
+
+    @Test func firstHalfEndsWithAdvance() {
+        let period = makePeriod(containing: makeDay("09.10.2026"), mode: .halfMonth, salaryEvents: history)
+        #expect(period.endExclusive == makeDay("15.10.2026"))
+        #expect(findPeriodEndKind(period: period, mode: .halfMonth, salaryEvents: history) == .advance)
+    }
+
+    @Test func secondHalfEndsWithSalary() {
+        let events = history + [makeSalaryEvent("15.10.2026", .advance, 150_000)]
+        let period = makePeriod(containing: makeDay("20.10.2026"), mode: .halfMonth, salaryEvents: events)
+        #expect(findPeriodEndKind(period: period, mode: .halfMonth, salaryEvents: events) == .salary)
+    }
+
+    @Test func actualEarlyEventDecidesKind() {
+        let events = history + [makeSalaryEvent("12.10.2026", .advance, 150_000)]
+        let period = makePeriod(containing: makeDay("09.10.2026"), mode: .halfMonth, salaryEvents: events)
+        #expect(period.endExclusive == makeDay("12.10.2026"))
+        #expect(findPeriodEndKind(period: period, mode: .halfMonth, salaryEvents: events) == .advance)
+    }
+
+    @Test func noHistoryMeansMonthEnd() {
+        let period = makePeriod(containing: makeDay("09.10.2026"), mode: .salaryMonth, salaryEvents: [])
+        #expect(findPeriodEndKind(period: period, mode: .salaryMonth, salaryEvents: []) == nil)
+    }
+}

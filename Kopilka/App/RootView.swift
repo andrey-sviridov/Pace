@@ -8,6 +8,10 @@ struct RootView: View {
     @Environment(JournalStore.self) private var journalStore
     @Environment(AccountStore.self) private var accountStore
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// «Сегодня» для всех расчётов считается только здесь и обновляется, когда приложение снова на экране.
+    @State private var today = makeCalendarDay(date: .now, calendar: .current)
 
     @State private var importResult: ImportResult?
     /// Файл, пришедший через «Поделиться» до конца настройки: его забирает экран настройки.
@@ -18,10 +22,14 @@ struct RootView: View {
         @Bindable var errorStore = errorStore
         let themeName = settingsStore.settings.theme
 
-        RootContent(hasFinishedSetup: settingsStore.settings.hasFinishedSetup, setupPdfData: $setupPdfData)
+        RootContent(hasFinishedSetup: settingsStore.settings.hasFinishedSetup, today: today, setupPdfData: $setupPdfData)
             .environment(\.theme, Theme.make(themeName, colorScheme: colorScheme))
             // Тема B тёмная всегда, поэтому и системные элементы (вкладки, окна) переводим в тёмный режим.
             .preferredColorScheme(themeName == .dark ? .dark : nil)
+            .onChange(of: scenePhase) {
+                guard scenePhase == .active else { return }
+                today = makeCalendarDay(date: .now, calendar: .current)
+            }
             .onOpenURL { url in
                 openSharedFile(url: url)
             }
@@ -123,11 +131,12 @@ struct RootView: View {
 /// Пока начальная настройка не пройдена, вкладкам нечего показывать.
 private struct RootContent: View {
     let hasFinishedSetup: Bool
+    let today: CalendarDay
     @Binding var setupPdfData: Data?
 
     var body: some View {
         if hasFinishedSetup {
-            MainTabView()
+            MainTabView(today: today)
         } else {
             OnboardingScreen(sharedPdfData: $setupPdfData)
         }
