@@ -4,5 +4,5 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 .DS_Store
-Packages/KopilkaCore/Tests/KopilkaCoreTests/Fixtures/*.pdf
+Packages/PaceCore/Tests/PaceCoreTests/Fixtures/*.pdf
 build/
