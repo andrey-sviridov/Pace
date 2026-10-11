@@ -48,7 +48,6 @@ import Testing
         #expect(settings.theme == .light)
         #expect(settings.periodMode == .salaryMonth)
         #expect(settings.employerName == "АЦЭПАК")
-        #expect(settings.kaspiOwnCardUntil == CalendarDay(year: 2026, month: 3, day: 1))
         #expect(!settings.isApplePayEnabled && !settings.isSmsEnabled)
         #expect(settings.monthlySavingsGoal == 0)
         #expect(!settings.hasFinishedSetup)

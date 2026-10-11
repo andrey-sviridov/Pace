@@ -12,7 +12,6 @@ public final class AmountRule {
     public var maxAmount: Decimal
     public var afterEvent: SalaryEventKind?
     public var windowDays: Int
-    public var beforeDay: CalendarDay?
     public var categoryId: String?
     public var targetAccountKind: AccountKind?
     public var sortOrder: Int
@@ -22,7 +21,6 @@ public final class AmountRule {
         maxAmount: Decimal,
         afterEvent: SalaryEventKind? = nil,
         windowDays: Int = 0,
-        beforeDay: CalendarDay? = nil,
         categoryId: String? = nil,
         targetAccountKind: AccountKind? = nil,
         sortOrder: Int = 0
@@ -31,7 +29,6 @@ public final class AmountRule {
         self.maxAmount = maxAmount
         self.afterEvent = afterEvent
         self.windowDays = windowDays
-        self.beforeDay = beforeDay
         self.categoryId = categoryId
         self.targetAccountKind = targetAccountKind
         self.sortOrder = sortOrder

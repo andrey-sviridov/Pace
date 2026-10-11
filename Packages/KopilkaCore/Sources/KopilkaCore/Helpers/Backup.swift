@@ -155,14 +155,14 @@ private func makeMerchantRuleBackup(_ rule: MerchantRule) -> MerchantRuleBackup 
 private func makeAmountRuleBackup(_ rule: AmountRule) -> AmountRuleBackup {
     AmountRuleBackup(
         minAmount: rule.minAmount, maxAmount: rule.maxAmount, afterEvent: rule.afterEvent, windowDays: rule.windowDays,
-        beforeDay: rule.beforeDay, categoryId: rule.categoryId, targetAccountKind: rule.targetAccountKind, sortOrder: rule.sortOrder
+        categoryId: rule.categoryId, targetAccountKind: rule.targetAccountKind, sortOrder: rule.sortOrder
     )
 }
 
 private func makeSettingsBackup(_ settings: AppSettings) -> SettingsBackup {
     SettingsBackup(
         theme: settings.theme, periodMode: settings.periodMode, employerName: settings.employerName,
-        kaspiOwnCardUntil: settings.kaspiOwnCardUntil, isApplePayEnabled: settings.isApplePayEnabled,
+        isApplePayEnabled: settings.isApplePayEnabled,
         isSmsEnabled: settings.isSmsEnabled, shouldShowRemainingAfterPayment: settings.shouldShowRemainingAfterPayment,
         monthlySavingsGoal: settings.monthlySavingsGoal, hasFinishedSetup: settings.hasFinishedSetup,
         hasAdvance: settings.hasAdvance, shouldShowOperationTime: settings.shouldShowOperationTime
@@ -210,14 +210,14 @@ private func makeMerchantRule(_ backup: MerchantRuleBackup) -> MerchantRule {
 private func makeAmountRule(_ backup: AmountRuleBackup) -> AmountRule {
     AmountRule(
         minAmount: backup.minAmount, maxAmount: backup.maxAmount, afterEvent: backup.afterEvent, windowDays: backup.windowDays,
-        beforeDay: backup.beforeDay, categoryId: backup.categoryId, targetAccountKind: backup.targetAccountKind, sortOrder: backup.sortOrder
+        categoryId: backup.categoryId, targetAccountKind: backup.targetAccountKind, sortOrder: backup.sortOrder
     )
 }
 
 private func makeSettings(_ backup: SettingsBackup) -> AppSettings {
     AppSettings(
         theme: backup.theme, periodMode: backup.periodMode, employerName: backup.employerName,
-        kaspiOwnCardUntil: backup.kaspiOwnCardUntil, isApplePayEnabled: backup.isApplePayEnabled,
+        isApplePayEnabled: backup.isApplePayEnabled,
         isSmsEnabled: backup.isSmsEnabled, shouldShowRemainingAfterPayment: backup.shouldShowRemainingAfterPayment,
         monthlySavingsGoal: backup.monthlySavingsGoal, hasFinishedSetup: backup.hasFinishedSetup,
         hasAdvance: backup.hasAdvance ?? true, shouldShowOperationTime: backup.shouldShowOperationTime ?? true

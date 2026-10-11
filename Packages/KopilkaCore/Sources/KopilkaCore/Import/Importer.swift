@@ -87,14 +87,14 @@ private func importStatementInTransaction(_ statement: ParsedStatement, mode: Im
         let transferRules = transfers.map { entry in
             findAmountRule(day: entry.day, amount: entry.amount, rules: amountRules, salaryEvents: salaryEvents)
         }
-        let kaspiAccount = try findOrCreateAccount(
+        let ownCardAccount = try findOrCreateAccount(
             kind: .ownOtherCard,
-            title: "Kaspi *3436",
+            title: "Своя карта",
             isNeeded: transferRules.contains { rule in rule?.targetAccountKind == .ownOtherCard },
             context: context
         )
         for (entry, rule) in zip(transfers, transferRules) {
-            updateEntry(entry, byAmountRule: rule, ownCardAccount: kaspiAccount)
+            updateEntry(entry, byAmountRule: rule, ownCardAccount: ownCardAccount)
         }
 
         setAnchorIfMissing(account, header: statement.header, mode: mode)
@@ -248,7 +248,7 @@ private func findOrCreateStatementAccount(_ statement: ParsedStatement, mode: Im
     return account
 }
 
-/// Второй конец перемещения (депозит, своя Kaspi): номера в выписке карты нет, ищем по виду счёта.
+/// Второй конец перемещения (депозит, своя карта): номера в выписке карты нет, ищем по виду счёта.
 /// Не нужен — nil, чтобы не заводить пустой счёт, которого у пользователя нет.
 private func findOrCreateAccount(kind: AccountKind, title: String, isNeeded: Bool, context: ModelContext) throws -> Account? {
     guard isNeeded else { return nil }
@@ -297,13 +297,11 @@ private func loadMerchantRules(context: ModelContext) throws -> [MerchantRule] {
     return makeBuiltInMerchantRules()
 }
 
-/// Пустая таблица — стартовые правила без сохранения, дата Kaspi из настроек.
+/// Пустая таблица — стартовые правила без сохранения: засев базы делает начальная настройка.
 private func loadAmountRules(context: ModelContext) throws -> [AmountRule] {
     let storedRules = try context.fetch(FetchDescriptor<AmountRule>())
     guard storedRules.isEmpty else { return storedRules }
-    let settings = try context.fetch(FetchDescriptor<AppSettings>()).first
-    let kaspiOwnCardUntil = settings?.kaspiOwnCardUntil ?? CalendarDay(year: 2026, month: 3, day: 1)
-    return makeDefaultAmountRules(kaspiOwnCardUntil: kaspiOwnCardUntil)
+    return makeDefaultAmountRules()
 }
 
 /// Все ключи источников из базы: SwiftData не отклоняет дубль ключа, а молча перезаписывает, поэтому отсеиваем заранее.
@@ -397,7 +395,7 @@ private func updateEntry(_ entry: JournalEntry, byAmountRule rule: AmountRule?, 
     if rule.targetAccountKind == .ownOtherCard {
         entry.type = .transfer
         entry.categoryId = "ownTransfer"
-        entry.title = "На свою карту Kaspi"
+        entry.title = "На свою карту"
         entry.counterAccount = ownCardAccount
     } else if let categoryId = rule.categoryId {
         entry.categoryId = categoryId

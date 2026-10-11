@@ -23,7 +23,7 @@ import Testing
 
         context.insert(MerchantRule(merchantKey: "MAGNUM", categoryId: "groceries", title: "Магнум", isBuiltIn: false))
         context.insert(MerchantRule(merchantKey: "GLOVO", categoryId: "foodDelivery", isBuiltIn: true))
-        context.insert(AmountRule(minAmount: 100, maxAmount: 200, afterEvent: .salary, windowDays: 3, beforeDay: CalendarDay(dotted: "01.03.2026"), categoryId: "ownTransfer", targetAccountKind: .ownOtherCard, sortOrder: 2))
+        context.insert(AmountRule(minAmount: 100, maxAmount: 200, afterEvent: .salary, windowDays: 3, categoryId: "ownTransfer", targetAccountKind: .ownOtherCard, sortOrder: 2))
         context.insert(AppSettings(theme: .paper, periodMode: .halfMonth, employerName: "Работодатель", isApplePayEnabled: true, monthlySavingsGoal: 50_000, hasFinishedSetup: true))
 
         let purchase = JournalEntry(
@@ -73,10 +73,10 @@ import Testing
             "\(rule.merchantKey)|\(rule.categoryId)|\(String(describing: rule.title))|\(rule.isBuiltIn)"
         }
         let amountRules = try context.fetch(FetchDescriptor<AmountRule>()).map { rule in
-            "\(rule.minAmount)|\(rule.maxAmount)|\(String(describing: rule.afterEvent))|\(rule.windowDays)|\(String(describing: rule.beforeDay))|\(String(describing: rule.categoryId))|\(String(describing: rule.targetAccountKind))|\(rule.sortOrder)"
+            "\(rule.minAmount)|\(rule.maxAmount)|\(String(describing: rule.afterEvent))|\(rule.windowDays)|\(String(describing: rule.categoryId))|\(String(describing: rule.targetAccountKind))|\(rule.sortOrder)"
         }
         let settings = try context.fetch(FetchDescriptor<AppSettings>()).map { item in
-            "\(item.theme)|\(item.periodMode)|\(item.employerName)|\(item.kaspiOwnCardUntil)|\(item.isApplePayEnabled)|\(item.isSmsEnabled)|\(item.shouldShowRemainingAfterPayment)|\(item.monthlySavingsGoal)|\(item.hasFinishedSetup)"
+            "\(item.theme)|\(item.periodMode)|\(item.employerName)|\(item.isApplePayEnabled)|\(item.isSmsEnabled)|\(item.shouldShowRemainingAfterPayment)|\(item.monthlySavingsGoal)|\(item.hasFinishedSetup)"
         }
         return (entryLines + accounts + categories + merchantRules + amountRules + settings).sorted()
     }

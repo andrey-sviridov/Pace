@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import KopilkaCore
 
-/// «Мои счета»: карты Halyk, депозиты и другие свои карты (Kaspi). Новую карту можно добавить сюда,
+/// «Мои счета»: карты Halyk, депозиты и другие свои карты. Новую карту можно добавить сюда,
 /// чтобы её выписка загружалась без вопроса «неизвестный счёт», а переводы на неё не считались тратами.
 struct AccountsScreen: View {
     let today: CalendarDay
@@ -22,7 +22,7 @@ struct AccountsScreen: View {
             Section {
                 Button("Добавить счёт") { isAddingAccount = true }
             } footer: {
-                Text("Переводы между своими счетами не считаются тратами. В выписке Halyk получатель перевода не указан, поэтому перевод узнаётся по выписке второго счёта или по правилу даты у Kaspi.")
+                Text("Переводы между своими счетами не считаются тратами. В выписке Halyk получатель перевода не указан, поэтому перевод узнаётся по выписке второго счёта или по правилу суммы.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -76,14 +76,12 @@ private struct AccountRow: View {
     }
 }
 
-/// Один счёт: название, номер, сверка остатка; у Kaspi — дата, до которой переводы на другую карту шли на неё.
+/// Один счёт: название, номер, сверка остатка (у другой своей карты остатка нет — её выписку мы не грузим).
 private struct AccountScreen: View {
     let account: Account
     let today: CalendarDay
 
     @Environment(AccountStore.self) private var accountStore
-    @Environment(SettingsStore.self) private var settingsStore
-    @Environment(RulesStore.self) private var rulesStore
     @Environment(ErrorStore.self) private var errorStore
     @Environment(\.theme) private var theme
 
@@ -99,20 +97,7 @@ private struct AccountScreen: View {
             if !account.number.isEmpty {
                 LabeledContent("Номер счёта", value: account.number)
             }
-            if account.kind == .ownOtherCard {
-                Section {
-                    DatePicker(
-                        "Переводы до",
-                        selection: Binding(
-                            get: { makeDate(day: settingsStore.settings.kaspiOwnCardUntil, calendar: .current) },
-                            set: { date in saveKaspiCutoff(makeCalendarDay(date: date, calendar: .current)) }
-                        ),
-                        displayedComponents: .date
-                    )
-                } footer: {
-                    Text("«Перевод на другую карту» раньше этой даты считается переводом на эту карту, а не тратой.")
-                }
-            } else {
+            if account.kind != .ownOtherCard {
                 Button("Сверить остаток") { isReconciling = true }
             }
         }
@@ -133,16 +118,6 @@ private struct AccountScreen: View {
         }
         do {
             try accountStore.updateTitle(account, title: trimmedTitle)
-        } catch {
-            errorStore.show(error)
-        }
-    }
-
-    /// Дата живёт в настройках и в правиле сумм — меняем оба места, как в RulesStore.updateKaspiCutoff.
-    private func saveKaspiCutoff(_ day: CalendarDay) {
-        do {
-            try settingsStore.update(\.kaspiOwnCardUntil, to: day)
-            try rulesStore.updateKaspiCutoff(day)
         } catch {
             errorStore.show(error)
         }

@@ -47,7 +47,6 @@ public struct AmountRuleBackup: Codable {
     public var maxAmount: Decimal
     public var afterEvent: SalaryEventKind?
     public var windowDays: Int
-    public var beforeDay: CalendarDay?
     public var categoryId: String?
     public var targetAccountKind: AccountKind?
     public var sortOrder: Int
@@ -57,7 +56,6 @@ public struct SettingsBackup: Codable {
     public var theme: ThemeName
     public var periodMode: PeriodMode
     public var employerName: String
-    public var kaspiOwnCardUntil: CalendarDay
     public var isApplePayEnabled: Bool
     public var isSmsEnabled: Bool
     public var shouldShowRemainingAfterPayment: Bool

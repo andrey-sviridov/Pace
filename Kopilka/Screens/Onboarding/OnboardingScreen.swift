@@ -93,7 +93,7 @@ struct OnboardingScreen: View {
             try accountStore.updateAnchor(cardAccount, balance: cardBalance, day: anchorDay)
             let depositAccount = try accountStore.findOrAddDepositAccount()
             try accountStore.updateAnchor(depositAccount, balance: depositBalance, day: anchorDay)
-            try rulesStore.seedBuiltInsIfMissing(kaspiOwnCardUntil: settingsStore.settings.kaspiOwnCardUntil)
+            try rulesStore.seedBuiltInsIfMissing()
             try settingsStore.saveSetupFinished()
         } catch {
             errorStore.show(error)

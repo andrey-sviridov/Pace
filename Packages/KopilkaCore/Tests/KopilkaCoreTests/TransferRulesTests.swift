@@ -3,7 +3,7 @@ import Testing
 @testable import KopilkaCore
 
 @Suite struct TransferRulesTests {
-    private let rules = makeDefaultAmountRules(kaspiOwnCardUntil: CalendarDay(dotted: "01.03.2026")!)
+    private let rules = makeDefaultAmountRules()
 
     private func makeEvent(_ dotted: String, _ kind: SalaryEventKind, isOneOff: Bool = false) -> SalaryEvent {
         SalaryEvent(day: CalendarDay(dotted: dotted)!, amount: 400_000, kind: kind, isOneOff: isOneOff)
@@ -34,10 +34,10 @@ import Testing
         #expect(findRule("02.06.2026", 120_000, events: events) == nil)
     }
 
-    @Test func beforeDayRuleMatchesAnyAmount() {
-        let rule = findRule("31.10.2025", 400_000, events: [])
-        #expect(rule?.targetAccountKind == .ownOtherCard)
-        #expect(rule?.categoryId == nil)
+    /// Правила по дате больше нет: старый перевод без зарплаты рядом ни под что не подходит.
+    @Test func oldTransferWithoutSalaryMatchesNothing() {
+        #expect(findRule("31.10.2025", 400_000, events: []) == nil)
+        #expect(findRule("28.02.2026", 100_000, events: []) == nil)
     }
 
     @Test func noRuleMatches() {
@@ -66,18 +66,9 @@ import Testing
         #expect(findRule("19.07.2026", 54_000, events: events)?.categoryId == "installments")
     }
 
-    @Test func beforeDayBoundaryIsExclusive() {
-        #expect(findRule("01.03.2026", 400_000, events: [])?.targetAccountKind != .ownOtherCard)
-        #expect(findRule("28.02.2026", 400_000, events: [])?.targetAccountKind == .ownOtherCard)
-    }
-
-    @Test func beforeDayRuleWinsOverFamily() {
-        let rule = findRule("29.12.2025", 100_000, events: [makeEvent("29.12.2025", .salary)])
-        #expect(rule?.targetAccountKind == .ownOtherCard)
-    }
-
     @Test func rulesAreResolvedBySortOrderNotArrayOrder() {
-        let shuffledRules = Array(rules.reversed())
+        let ownCardRule = AmountRule(minAmount: 90_000, maxAmount: 110_000, targetAccountKind: .ownOtherCard, sortOrder: -1)
+        let shuffledRules = Array(rules.reversed()) + [ownCardRule]
         let events = [makeEvent("29.12.2025", .salary)]
         let rule = findAmountRule(day: CalendarDay(dotted: "29.12.2025")!, amount: 100_000, rules: shuffledRules, salaryEvents: events)
         #expect(rule?.targetAccountKind == .ownOtherCard)

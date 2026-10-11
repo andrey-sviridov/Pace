@@ -279,19 +279,20 @@ import Testing
         #expect(entry.isReviewed == false)
     }
 
-    @Test func transferBeforeKaspiDateBecomesOwnTransfer() throws {
+    @Test func ownCardAmountRuleMakesTransfer() throws {
         let context = try makeContext()
+        context.insert(AmountRule(minAmount: 30_000, maxAmount: 30_000, targetAccountKind: .ownOtherCard))
         let statement = makeStatement(rows: [
             makeRow("20.01.2026", "Перевод на другую карту", operationAmount: -30_000, expense: -30_200),
         ])
 
         _ = try importStatement(statement, mode: .initialHistory, context: context, now: importedAt)
 
-        let entry = try findEntry(titled: "На свою карту Kaspi", in: context)
+        let entry = try findEntry(titled: "На свою карту", in: context)
         #expect(entry.type == .transfer)
         #expect(entry.account?.kind == .card)
         #expect(entry.counterAccount?.kind == .ownOtherCard)
-        #expect(entry.counterAccount?.title == "Kaspi *3436")
+        #expect(entry.counterAccount?.title == "Своя карта")
         #expect(entry.categoryId == "ownTransfer")
         #expect(entry.isReviewed)
     }
@@ -538,9 +539,9 @@ import Testing
         print("IMPORT-REPORT transfers to other card:", transfers.count)
         let familySized = transfers.filter { entry in entry.amount == 100_000 || entry.amount == 120_000 }
         let installmentSized = transfers.filter { entry in entry.amount >= 53_500 && entry.amount <= 54_500 }
-        print("IMPORT-REPORT family-sized:", familySized.count, "family:", familySized.filter { entry in entry.categoryId == "family" }.count, "own Kaspi:", familySized.filter { entry in entry.categoryId == "ownTransfer" }.count)
-        print("IMPORT-REPORT installment-sized:", installmentSized.count, "installments:", installmentSized.filter { entry in entry.categoryId == "installments" }.count, "own Kaspi:", installmentSized.filter { entry in entry.categoryId == "ownTransfer" }.count)
-        print("IMPORT-REPORT own Kaspi:", entries.filter { entry in entry.title == "На свою карту Kaspi" }.count)
+        print("IMPORT-REPORT family-sized:", familySized.count, "family:", familySized.filter { entry in entry.categoryId == "family" }.count, "own card:", familySized.filter { entry in entry.categoryId == "ownTransfer" }.count)
+        print("IMPORT-REPORT installment-sized:", installmentSized.count, "installments:", installmentSized.filter { entry in entry.categoryId == "installments" }.count, "own card:", installmentSized.filter { entry in entry.categoryId == "ownTransfer" }.count)
+        print("IMPORT-REPORT own Kaspi:", entries.filter { entry in entry.title == "На свою карту" }.count)
         print("IMPORT-REPORT accounts:", try context.fetch(FetchDescriptor<Account>()).map { account in "\(account.kind.rawValue):\(account.title)" })
         print("IMPORT-REPORT non-positive amounts:", entries.filter { entry in entry.amount <= 0 }.count, "negative fees:", entries.filter { entry in entry.feeAmount < 0 }.count)
         print("IMPORT-REPORT needs review:", entries.filter { entry in !entry.isReviewed }.count)

@@ -8,14 +8,27 @@ import KopilkaCore
 final class RulesStore {
     private let context: ModelContext
 
-    init(context: ModelContext) {
+    init(context: ModelContext) throws {
         self.context = context
+        try deleteDateRuleLeftover()
+    }
+
+    /// Раньше было правило «все переводы до 1 марта — на свою Kaspi». Поле с датой из базы ушло,
+    /// и от правила осталась пустышка с суммой 0 ₸: редактор такую создать не даёт, поэтому узнаём её по сумме.
+    private func deleteDateRuleLeftover() throws {
+        let rules = try context.fetch(FetchDescriptor<AmountRule>())
+        let leftoverRules = rules.filter { rule in rule.maxAmount == 0 }
+        guard !leftoverRules.isEmpty else { return }
+        for rule in leftoverRules {
+            context.delete(rule)
+        }
+        try context.save()
     }
 
     /// Добавляет только то, чего нет: категории — по id, правила продавцов — по ключу, правила сумм — если таблица пуста.
     /// Существующие записи не трогаем: SwiftData при совпадении уникального поля молча перезаписал бы
     /// правку пользователя встроенным значением.
-    func seedBuiltInsIfMissing(kaspiOwnCardUntil: CalendarDay) throws {
+    func seedBuiltInsIfMissing() throws {
         let existingCategories = try context.fetch(FetchDescriptor<SpendingCategory>())
         let existingCategoryIds = Set(existingCategories.map { category in category.id })
         let missingCategories = makeBuiltInCategories().filter { category in !existingCategoryIds.contains(category.id) }
@@ -32,7 +45,7 @@ final class RulesStore {
 
         // Правила сумм не имеют ключа: если пользователь уже что-то настроил, стартовые не подмешиваем.
         let amountRuleCount = try context.fetchCount(FetchDescriptor<AmountRule>())
-        let missingAmountRules = amountRuleCount == 0 ? makeDefaultAmountRules(kaspiOwnCardUntil: kaspiOwnCardUntil) : []
+        let missingAmountRules = amountRuleCount == 0 ? makeDefaultAmountRules() : []
         for rule in missingAmountRules {
             context.insert(rule)
         }
@@ -146,17 +159,6 @@ final class RulesStore {
         let isOwnCardTransfer = draft.categoryId == "ownTransfer"
         rule.categoryId = isOwnCardTransfer ? nil : draft.categoryId
         rule.targetAccountKind = isOwnCardTransfer ? .ownOtherCard : nil
-    }
-
-    /// Дата «переводы до … — на свою Kaspi» живёт в двух местах: в настройках и в правиле сумм с beforeDay.
-    /// Меняем обе, иначе импорт продолжил бы считать по старой дате.
-    func updateKaspiCutoff(_ day: CalendarDay) throws {
-        let rules = try context.fetch(FetchDescriptor<AmountRule>())
-        let cutoffRules = rules.filter { rule in rule.beforeDay != nil }
-        for rule in cutoffRules {
-            rule.beforeDay = day
-        }
-        try context.save()
     }
 }
 

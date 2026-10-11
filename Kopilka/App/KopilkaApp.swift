@@ -50,7 +50,7 @@ func makeAppStartup() -> AppStartup {
             settingsStore: try SettingsStore(context: context),
             journalStore: JournalStore(context: context),
             accountStore: AccountStore(context: context),
-            rulesStore: RulesStore(context: context)
+            rulesStore: try RulesStore(context: context)
         )
         return .ready(stores)
     } catch {

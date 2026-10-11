@@ -5,7 +5,6 @@ import KopilkaCore
 /// «Правила категорий»: переводы по сумме (кому ушёл перевод — в выписке не видно) и продавец → категория.
 /// Любое правило можно поправить или удалить смахиванием. Уже размеченные записи правка не меняет.
 struct RulesScreen: View {
-    @Environment(SettingsStore.self) private var settingsStore
     @Environment(\.theme) private var theme
 
     @Query(sort: \MerchantRule.merchantKey) private var merchantRules: [MerchantRule]
@@ -17,19 +16,13 @@ struct RulesScreen: View {
 
     var body: some View {
         let namesById = makeCategoryNamesById(categories)
-        // Правило «всё до даты — на свою Kaspi» правится в «Мои счета», здесь оно только напоминание.
-        let editableAmountRules = amountRules.filter { rule in rule.beforeDay == nil }
         let foundRules = merchantRules.filter { rule in
             query.isEmpty || rule.merchantKey.localizedCaseInsensitiveContains(query)
         }
 
         List {
-            Section {
-                KaspiCutoffNote(day: settingsStore.settings.kaspiOwnCardUntil, theme: theme)
-                    .listRowBackground(theme.accent.opacity(0.12))
-            }
             AmountRulesSection(
-                rules: editableAmountRules,
+                rules: amountRules,
                 categories: categories,
                 namesById: namesById,
                 onAdd: { isAddingAmountRule = true }
@@ -43,22 +36,6 @@ struct RulesScreen: View {
         .navigationTitle("Правила")
         .sheet(isPresented: $isAddingAmountRule) {
             NavigationStack { AmountRuleEditor(rule: nil, categories: categories) }
-        }
-    }
-}
-
-/// Синяя плашка-напоминание вместо строки в списке.
-private struct KaspiCutoffNote: View {
-    let day: CalendarDay
-    let theme: Theme
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "info.circle")
-                .foregroundStyle(theme.accent)
-            Text("Переводы на другую карту до \(formatShortDay(day)) считаются переводами на вашу Kaspi, а не тратами. Дата меняется в «Мои счета».")
-                .font(.footnote)
-                .foregroundStyle(theme.text)
         }
     }
 }
@@ -83,15 +60,16 @@ private struct AmountRulesSection: View {
                     AmountRuleRow(rule: rule, targetName: makeTargetName(rule, namesById: namesById))
                 }
                 .swipeActions {
-                    // Иконка вместо красного слова: удаление спокойное, правило всегда можно добавить снова.
+                    // Иконка вместо слова: красная, как привычное удаление в iOS.
                     Button { delete(rule) } label: {
                         Image(systemName: "trash")
                     }
-                    .tint(.gray)
+                    .tint(.red)
                     .accessibilityLabel("Удалить правило")
                 }
             }
             Button("Добавить правило", action: onAdd)
+                .font(.subheadline)
         } header: {
             Text("Переводы по сумме")
         } footer: {
@@ -115,6 +93,7 @@ private struct AmountRuleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(makeAmountRuleTitle(rule))
+                .font(.subheadline)
             Text("→ \(targetName)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -247,14 +226,16 @@ private struct MerchantRulesSection: View {
                     Button { editedRule = rule } label: {
                         LabeledContent(rule.title ?? rule.merchantKey, value: makeCategoryName(categoryId: rule.categoryId, namesById: namesById))
                     }
+                    // Список длинный (сотни продавцов): мелкий шрифт помещает больше строк на экран.
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
                     .swipeActions {
-                        // Иконка вместо красного слова: удаление спокойное, правило всегда можно добавить снова.
-                    Button { delete(rule) } label: {
-                        Image(systemName: "trash")
-                    }
-                    .tint(.gray)
-                    .accessibilityLabel("Удалить правило")
+                        // Иконка вместо слова: красная, как привычное удаление в iOS.
+                        Button { delete(rule) } label: {
+                            Image(systemName: "trash")
+                        }
+                        .tint(.red)
+                        .accessibilityLabel("Удалить правило")
                     }
                 }
             } header: {
