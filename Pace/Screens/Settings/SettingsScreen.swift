@@ -79,7 +79,7 @@ private struct PeriodSection: View {
     }
 }
 
-/// Четыре темы с мини-превью: фон, карточка и акцент — сразу видно, как будет выглядеть.
+/// Пять тем с мини-превью: фон, карточка и акцент — сразу видно, как будет выглядеть.
 private struct ThemeChooser: View {
     let selection: ThemeName
     let onSelect: (ThemeName) -> Void
@@ -99,6 +99,9 @@ private struct ThemeChooser: View {
             }
             ThemePreview(title: "D · Графит", theme: Theme.make(.graphite, colorScheme: colorScheme), isSelected: selection == .graphite) {
                 onSelect(.graphite)
+            }
+            ThemePreview(title: "E · Свечение", theme: Theme.make(.glow, colorScheme: colorScheme), isSelected: selection == .glow) {
+                onSelect(.glow)
             }
         }
         .padding(.vertical, 4)

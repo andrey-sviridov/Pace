@@ -9,7 +9,11 @@ struct Card<Content: View>: View {
     var body: some View {
         content
             .padding()
-            .background(theme.card, in: RoundedRectangle(cornerRadius: theme.cornerRadius))
+            .background {
+                RoundedRectangle(cornerRadius: theme.cornerRadius)
+                    .fill(theme.card)
+                    .overlay(RoundedRectangle(cornerRadius: theme.cornerRadius).fill(theme.cardSheen))
+            }
             .overlay(RoundedRectangle(cornerRadius: theme.cornerRadius).strokeBorder(theme.cardBorder, lineWidth: 1))
     }
 }

@@ -72,7 +72,7 @@ struct HomeScreen: View {
                 }
                 .padding()
             }
-            .background(theme.background)
+            .background(HomeBackground(theme: theme))
             .navigationTitle("Главная")
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $reconciledAccount) { account in
@@ -106,7 +106,10 @@ private struct HomeHero: View {
 
     var body: some View {
         let isOverspent = numbers.budget.freeToSpend < 0
-        VStack(alignment: .leading, spacing: 6) {
+        // Тема E: всё по центру, у цифры свечение, перерасход — в полупрозрачной красной плашке.
+        let alignment: HorizontalAlignment = theme.isGlowing ? .center : .leading
+        let isOverspendBanner = theme.isGlowing && isOverspent
+        VStack(alignment: alignment, spacing: 6) {
             Text(makeHeroTitle(numbers: numbers))
                 .font(.subheadline)
                 .foregroundStyle(isOverspent ? theme.over : theme.secondaryText)
@@ -114,6 +117,7 @@ private struct HomeHero: View {
                 .font(theme.heroFont)
                 .monospacedDigit()
                 .foregroundStyle(isOverspent ? theme.over : theme.text)
+                .shadow(color: theme.makeGlow(isOverspent ? theme.over : theme.accent).opacity(0.6), radius: 18)
             Text(makeHeroCaption(numbers: numbers))
                 .font(.footnote)
                 .foregroundStyle(theme.secondaryText)
@@ -123,7 +127,32 @@ private struct HomeHero: View {
                     .foregroundStyle(monthBudget.freeToSpend < 0 ? theme.over : theme.text)
             }
         }
-        .padding(.horizontal, 4)
+        .multilineTextAlignment(theme.isGlowing ? .center : .leading)
+        .frame(maxWidth: theme.isGlowing ? .infinity : nil)
+        .padding(.vertical, isOverspendBanner ? 14 : 0)
+        .padding(.horizontal, isOverspendBanner ? 16 : 4)
+        .background {
+            if isOverspendBanner {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(theme.over.opacity(0.18))
+                    .strokeBorder(theme.over.opacity(0.4), lineWidth: 1)
+            }
+        }
+    }
+}
+
+/// Фон главной; в теме E сверху — мягкое пятно цвета акцента, как на макете.
+private struct HomeBackground: View {
+    let theme: Theme
+
+    var body: some View {
+        theme.background
+            .overlay(alignment: .top) {
+                if theme.isGlowing {
+                    RadialGradient(colors: [theme.accent.opacity(0.16), .clear], center: .top, startRadius: 0, endRadius: 460)
+                }
+            }
+            .ignoresSafeArea()
     }
 }
 

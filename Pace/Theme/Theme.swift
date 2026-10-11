@@ -21,8 +21,11 @@ struct Theme {
     let cornerRadius: CGFloat
     /// Тонкая обводка карточки: в тёмных темах карточка без неё сливается с фоном.
     var cardBorder: Color = .clear
+    /// Тема E: заливки «в норме» — градиентом от `accent` к `accentGradientEnd` и со свечением, карточки — стеклом.
+    var style: ThemeStyle = .flat
+    var accentGradientEnd: Color = .clear
 
-    /// A и C следуют системной светлой/тёмной теме, B и D всегда тёмные.
+    /// A и C следуют системной светлой/тёмной теме, B, D и E всегда тёмные.
     static func make(_ name: ThemeName, colorScheme: ColorScheme) -> Theme {
         switch name {
         case .light:
@@ -33,7 +36,35 @@ struct Theme {
             return colorScheme == .dark ? paperDark : paperLight
         case .graphite:
             return graphite
+        case .glow:
+            return glow
         }
+    }
+}
+
+/// Плоские заливки или со свечением (тема E).
+enum ThemeStyle {
+    case flat, glow
+}
+
+extension Theme {
+    var isGlowing: Bool { style == .glow }
+
+    /// Заливка «в норме»: в теме E — градиент, в остальных — цвет акцента.
+    var accentFill: AnyShapeStyle {
+        guard isGlowing else { return AnyShapeStyle(accent) }
+        return AnyShapeStyle(LinearGradient(colors: [accent, accentGradientEnd], startPoint: .leading, endPoint: .trailing))
+    }
+
+    /// Блик поверх карточки: в теме E сверху светлее, как у стекла; в остальных его нет.
+    var cardSheen: AnyShapeStyle {
+        guard isGlowing else { return AnyShapeStyle(Color.clear) }
+        return AnyShapeStyle(LinearGradient(colors: [.white.opacity(0.07), .white.opacity(0.01)], startPoint: .top, endPoint: .bottom))
+    }
+
+    /// Цвет свечения вокруг заливки; в плоских темах свечения нет.
+    func makeGlow(_ color: Color) -> Color {
+        isGlowing ? color.opacity(0.55) : .clear
     }
 }
 
@@ -118,6 +149,29 @@ extension Theme {
         income: Color(hex: 0x7FA88A),
         heroFont: .system(size: 28, weight: .regular, design: .serif),
         cornerRadius: 10
+    )
+}
+
+// MARK: - E, свечение
+
+extension Theme {
+    /// E, всегда тёмная, по макету со свечением: стеклянные карточки, голубой градиент со свечением, иконки у лимитов.
+    static let glow = Theme(
+        background: Color(hex: 0x0A0F14),
+        card: Color(hex: 0x151B21),
+        text: Color(hex: 0xF2F6F8),
+        secondaryText: Color(hex: 0x8B98A3),
+        track: Color(hex: 0x232A31),
+        accent: Color(hex: 0x4FE0FF),
+        normal: Color(hex: 0x4FE0FF),
+        warning: Color(hex: 0xF5B43C),
+        over: Color(hex: 0xFF5A5A),
+        income: Color(hex: 0x2FD9A0),
+        heroFont: .system(size: 40, weight: .semibold),
+        cornerRadius: 22,
+        cardBorder: .white.opacity(0.1),
+        style: .glow,
+        accentGradientEnd: Color(hex: 0x3B6CF6)
     )
 }
 

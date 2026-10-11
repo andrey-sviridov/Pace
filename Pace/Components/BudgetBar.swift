@@ -11,6 +11,8 @@ struct BudgetBarSegment: Identifiable {
     var isOverAmount = false
     /// Метка в легенде кружком-контуром: заливка цвета дорожки на светлом фоне карточки не видна.
     var hasOutlinedMarker = false
+    /// «Потрачено»: в теме E закрашивается градиентом акцента.
+    var usesAccentFill = false
 
     var id: String { title }
 }
@@ -40,7 +42,7 @@ extension BudgetBar {
         let segments = [
             BudgetBarSegment(title: "Обязательные", amount: summary.obligatoryTotal, color: theme.secondaryText.opacity(0.55)),
             BudgetBarSegment(title: "Отложено", amount: summary.savingsGoal, color: theme.accent.opacity(0.45)),
-            BudgetBarSegment(title: "Потрачено", amount: summary.flexibleSpent, color: theme.accent),
+            BudgetBarSegment(title: "Потрачено", amount: summary.flexibleSpent, color: theme.accent, usesAccentFill: true),
             freeSegment,
         ]
         self.init(segments: segments, theme: theme)
@@ -67,7 +69,7 @@ private struct BudgetBarStrip: View {
                 HStack(spacing: 2) {
                     ForEach(regularSegments) { segment in
                         Rectangle()
-                            .fill(segment.color)
+                            .fill(segment.usesAccentFill ? theme.accentFill : AnyShapeStyle(segment.color))
                             .frame(width: availableWidth * makeShare(segment.amount, of: total))
                     }
                 }
