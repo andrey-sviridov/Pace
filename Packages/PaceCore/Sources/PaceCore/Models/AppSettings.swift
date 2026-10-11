@@ -19,7 +19,7 @@ public final class AppSettings {
     public var shouldShowOperationTime: Bool = true
 
     public init(
-        theme: ThemeName = .light,
+        theme: ThemeName = .graphite,
         periodMode: PeriodMode = .salaryMonth,
         employerName: String = "АЦЭПАК",
         isApplePayEnabled: Bool = false,

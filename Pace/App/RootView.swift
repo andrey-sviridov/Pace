@@ -7,7 +7,6 @@ struct RootView: View {
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(JournalStore.self) private var journalStore
     @Environment(AccountStore.self) private var accountStore
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
 
     /// «Сегодня» для всех расчётов считается только здесь и обновляется, когда приложение снова на экране.
@@ -31,9 +30,9 @@ struct RootView: View {
             selectedTab: $selectedTab,
             homePath: $homePath
         )
-            .environment(\.theme, Theme.make(themeName, colorScheme: colorScheme))
-            // Темы B, D и E тёмные всегда, поэтому и системные элементы (вкладки, окна) переводим в тёмный режим.
-            .preferredColorScheme([.dark, .graphite, .glow].contains(themeName) ? .dark : nil)
+            .environment(\.theme, Theme.make(themeName))
+            // Обе темы тёмные, поэтому и системные элементы (вкладки, окна) всегда в тёмном режиме.
+            .preferredColorScheme(.dark)
             .onChange(of: scenePhase) {
                 guard scenePhase == .active else { return }
                 today = makeCalendarDay(date: .now, calendar: .current)
@@ -58,7 +57,7 @@ struct RootView: View {
             }
             .sheet(isPresented: makeIsShownBinding($importResult)) {
                 ImportResultSheet(result: importResult, onReview: openReview)
-                    .environment(\.theme, Theme.make(themeName, colorScheme: colorScheme))
+                    .environment(\.theme, Theme.make(themeName))
             }
             .alert("Не получилось", isPresented: makeIsShownBinding($errorStore.currentMessage)) {
                 Button("Понятно") { errorStore.close() }

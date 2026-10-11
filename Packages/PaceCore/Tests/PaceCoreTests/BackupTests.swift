@@ -24,7 +24,7 @@ import Testing
         context.insert(MerchantRule(merchantKey: "MAGNUM", categoryId: "groceries", title: "Магнум", isBuiltIn: false))
         context.insert(MerchantRule(merchantKey: "GLOVO", categoryId: "foodDelivery", isBuiltIn: true))
         context.insert(AmountRule(minAmount: 100, maxAmount: 200, afterEvent: .salary, windowDays: 3, categoryId: "ownTransfer", targetAccountKind: .ownOtherCard, sortOrder: 2))
-        context.insert(AppSettings(theme: .paper, periodMode: .halfMonth, employerName: "Работодатель", isApplePayEnabled: true, monthlySavingsGoal: 50_000, hasFinishedSetup: true))
+        context.insert(AppSettings(theme: .glow, periodMode: .halfMonth, employerName: "Работодатель", isApplePayEnabled: true, monthlySavingsGoal: 50_000, hasFinishedSetup: true))
 
         let purchase = JournalEntry(
             day: CalendarDay(dotted: "05.10.2026")!, time: now, type: .expense, amount: Decimal(string: "1500.25")!, feeAmount: 10,

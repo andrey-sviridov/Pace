@@ -79,28 +79,17 @@ private struct PeriodSection: View {
     }
 }
 
-/// Пять тем с мини-превью: фон, карточка и акцент — сразу видно, как будет выглядеть.
+/// Две темы с мини-превью: фон, карточка и акцент — сразу видно, как будет выглядеть.
 private struct ThemeChooser: View {
     let selection: ThemeName
     let onSelect: (ThemeName) -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         HStack(spacing: 12) {
-            ThemePreview(title: "A · Светлая", theme: Theme.make(.light, colorScheme: colorScheme), isSelected: selection == .light) {
-                onSelect(.light)
-            }
-            ThemePreview(title: "B · Тёмная", theme: Theme.make(.dark, colorScheme: colorScheme), isSelected: selection == .dark) {
-                onSelect(.dark)
-            }
-            ThemePreview(title: "C · Бумажная", theme: Theme.make(.paper, colorScheme: colorScheme), isSelected: selection == .paper) {
-                onSelect(.paper)
-            }
-            ThemePreview(title: "D · Графит", theme: Theme.make(.graphite, colorScheme: colorScheme), isSelected: selection == .graphite) {
+            ThemePreview(title: "Графит", theme: Theme.make(.graphite), isSelected: selection == .graphite) {
                 onSelect(.graphite)
             }
-            ThemePreview(title: "E · Свечение", theme: Theme.make(.glow, colorScheme: colorScheme), isSelected: selection == .glow) {
+            ThemePreview(title: "Свечение", theme: Theme.make(.glow), isSelected: selection == .glow) {
                 onSelect(.glow)
             }
         }
@@ -124,7 +113,7 @@ private struct ThemePreview: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(theme.card)
                             .frame(height: 24)
-                            .overlay(Capsule().fill(theme.accent).frame(width: 28, height: 6))
+                            .overlay(Capsule().fill(theme.accentFill).frame(width: 28, height: 6))
                             .padding(6)
                     }
                     .overlay(

@@ -20,7 +20,13 @@ public enum PeriodMode: String, Codable, Sendable {
     case calendarMonth, salaryMonth, halfMonth
 }
 
-/// Темы A / B / C / D / E из дизайна.
+/// Темы «Графит» и «Свечение».
 public enum ThemeName: String, Codable, Sendable {
-    case light, dark, paper, graphite, glow
+    case graphite, glow
+
+    /// Прежние темы (light, dark, paper) убраны: их значения из базы и резервных копий читаются как «Графит».
+    public init(from decoder: Decoder) throws {
+        let rawValue = try decoder.singleValueContainer().decode(String.self)
+        self = ThemeName(rawValue: rawValue) ?? .graphite
+    }
 }

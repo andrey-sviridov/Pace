@@ -67,7 +67,7 @@ private struct LimitMeterTrack: View {
     }
 }
 
-/// Тема E: иконка категории на подложке цвета статуса, как на макете.
+/// «Свечение»: иконка категории на подложке цвета статуса, как на макете.
 private struct LimitIcon: View {
     let iconName: String
     let color: Color

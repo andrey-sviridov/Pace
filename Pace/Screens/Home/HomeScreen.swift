@@ -106,7 +106,7 @@ private struct HomeHero: View {
 
     var body: some View {
         let isOverspent = numbers.budget.freeToSpend < 0
-        // Тема E: всё по центру, у цифры свечение.
+        // «Свечение»: всё по центру, у цифры свечение.
         let alignment: HorizontalAlignment = theme.isGlowing ? .center : .leading
         VStack(alignment: alignment, spacing: 6) {
             Text(makeHeroTitle(numbers: numbers))
@@ -132,7 +132,7 @@ private struct HomeHero: View {
     }
 }
 
-/// Фон главной; в теме E сверху — мягкое пятно цвета акцента, как на макете.
+/// Фон главной; в «Свечении» сверху — мягкое пятно цвета акцента, как на макете.
 private struct HomeBackground: View {
     let theme: Theme
 
