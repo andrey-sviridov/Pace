@@ -10,9 +10,7 @@ struct LimitMeter: View {
         let isOver = status.spent > status.limit
         let levelColor = makeLevelColor(status.level, theme: theme)
         HStack(spacing: 12) {
-            if theme.isGlowing {
-                LimitIcon(iconName: status.category.iconName, color: levelColor)
-            }
+            LimitIcon(iconName: status.category.iconName, color: levelColor)
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(status.category.name)
@@ -67,7 +65,7 @@ private struct LimitMeterTrack: View {
     }
 }
 
-/// «Свечение»: иконка категории на подложке цвета статуса, как на макете.
+/// Иконка категории на подложке цвета статуса, как на макете.
 private struct LimitIcon: View {
     let iconName: String
     let color: Color
