@@ -106,9 +106,8 @@ private struct HomeHero: View {
 
     var body: some View {
         let isOverspent = numbers.budget.freeToSpend < 0
-        // Тема E: всё по центру, у цифры свечение, перерасход — в полупрозрачной красной плашке.
+        // Тема E: всё по центру, у цифры свечение.
         let alignment: HorizontalAlignment = theme.isGlowing ? .center : .leading
-        let isOverspendBanner = theme.isGlowing && isOverspent
         VStack(alignment: alignment, spacing: 6) {
             Text(makeHeroTitle(numbers: numbers))
                 .font(.subheadline)
@@ -129,15 +128,7 @@ private struct HomeHero: View {
         }
         .multilineTextAlignment(theme.isGlowing ? .center : .leading)
         .frame(maxWidth: theme.isGlowing ? .infinity : nil)
-        .padding(.vertical, isOverspendBanner ? 14 : 0)
-        .padding(.horizontal, isOverspendBanner ? 16 : 4)
-        .background {
-            if isOverspendBanner {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(theme.over.opacity(0.18))
-                    .strokeBorder(theme.over.opacity(0.4), lineWidth: 1)
-            }
-        }
+        .padding(.horizontal, 4)
     }
 }
 
