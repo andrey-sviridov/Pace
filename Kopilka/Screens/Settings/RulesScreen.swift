@@ -69,7 +69,6 @@ private struct AmountRulesSection: View {
                 }
             }
             Button("Добавить правило", action: onAdd)
-                .font(.subheadline)
         } header: {
             Text("Переводы по сумме")
         } footer: {
@@ -93,7 +92,6 @@ private struct AmountRuleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(makeAmountRuleTitle(rule))
-                .font(.subheadline)
             Text("→ \(targetName)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -226,8 +224,6 @@ private struct MerchantRulesSection: View {
                     Button { editedRule = rule } label: {
                         LabeledContent(rule.title ?? rule.merchantKey, value: makeCategoryName(categoryId: rule.categoryId, namesById: namesById))
                     }
-                    // Список длинный (сотни продавцов): мелкий шрифт помещает больше строк на экран.
-                    .font(.subheadline)
                     .foregroundStyle(.primary)
                     .swipeActions {
                         // Иконка вместо слова: красная, как привычное удаление в iOS.

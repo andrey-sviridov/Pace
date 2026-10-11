@@ -10,17 +10,17 @@ struct MoneyField: View {
     @State private var text = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(theme.secondaryText)
+        // Обычная строка формы: подпись слева, сумма справа, текст того же размера, что и в остальных строках.
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
+                Text(title)
+                    .foregroundStyle(theme.text)
                 TextField("0", text: $text)
                     .keyboardType(.decimalPad)
-                    .font(.title2.monospacedDigit())
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
                     .foregroundStyle(theme.text)
                 Text("₸")
-                    .font(.title2)
                     .foregroundStyle(theme.secondaryText)
             }
             if isUnreadable {

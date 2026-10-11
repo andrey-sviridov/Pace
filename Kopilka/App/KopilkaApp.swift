@@ -9,18 +9,23 @@ struct KopilkaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            switch startup {
-            case .ready(let stores):
-                RootView()
-                    .environment(stores.errorStore)
-                    .environment(stores.settingsStore)
-                    .environment(stores.journalStore)
-                    .environment(stores.accountStore)
-                    .environment(stores.rulesStore)
-                    .modelContainer(stores.container)
-            case .failed(let message):
-                StartupErrorScreen(message: message)
+            Group {
+                switch startup {
+                case .ready(let stores):
+                    RootView()
+                        .environment(stores.errorStore)
+                        .environment(stores.settingsStore)
+                        .environment(stores.journalStore)
+                        .environment(stores.accountStore)
+                        .environment(stores.rulesStore)
+                        .modelContainer(stores.container)
+                case .failed(let message):
+                    StartupErrorScreen(message: message)
+                }
             }
+            // Один размер текста на всё приложение: системный шаг меньше обычного.
+            // Обычный текст становится 15 pt, подписи и заголовки уменьшаются в той же пропорции.
+            .dynamicTypeSize(.small)
         }
     }
 }
