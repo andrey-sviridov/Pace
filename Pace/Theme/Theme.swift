@@ -19,8 +19,10 @@ struct Theme {
     /// Шрифт главной цифры «Можно потратить».
     let heroFont: Font
     let cornerRadius: CGFloat
+    /// Тонкая обводка карточки: в тёмных темах карточка без неё сливается с фоном.
+    var cardBorder: Color = .clear
 
-    /// A и C следуют системной светлой/тёмной теме, B всегда тёмная.
+    /// A и C следуют системной светлой/тёмной теме, B и D всегда тёмные.
     static func make(_ name: ThemeName, colorScheme: ColorScheme) -> Theme {
         switch name {
         case .light:
@@ -29,6 +31,8 @@ struct Theme {
             return night
         case .paper:
             return colorScheme == .dark ? paperDark : paperLight
+        case .graphite:
+            return graphite
         }
     }
 }
@@ -114,6 +118,27 @@ extension Theme {
         income: Color(hex: 0x7FA88A),
         heroFont: .system(size: 28, weight: .regular, design: .serif),
         cornerRadius: 10
+    )
+}
+
+// MARK: - D, графит
+
+extension Theme {
+    /// D, всегда тёмная: графитовые карточки с обводкой, один плоский голубой акцент без градиентов и свечения.
+    static let graphite = Theme(
+        background: Color(hex: 0x111317),
+        card: Color(hex: 0x1C1F26),
+        text: Color(hex: 0xF4F5F7),
+        secondaryText: Color(hex: 0x8E8E93),
+        track: Color(hex: 0x2A2E37),
+        accent: Color(hex: 0x2EB8E6),
+        normal: Color(hex: 0x2EB8E6),
+        warning: Color(hex: 0xF0A43A),
+        over: Color(hex: 0xF0605A),
+        income: Color(hex: 0x2FC99A),
+        heroFont: .system(size: 34, weight: .bold),
+        cornerRadius: 20,
+        cardBorder: Color(hex: 0x2A2F3A)
     )
 }
 

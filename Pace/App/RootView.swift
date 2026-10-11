@@ -32,8 +32,8 @@ struct RootView: View {
             homePath: $homePath
         )
             .environment(\.theme, Theme.make(themeName, colorScheme: colorScheme))
-            // Тема B тёмная всегда, поэтому и системные элементы (вкладки, окна) переводим в тёмный режим.
-            .preferredColorScheme(themeName == .dark ? .dark : nil)
+            // Темы B и D тёмные всегда, поэтому и системные элементы (вкладки, окна) переводим в тёмный режим.
+            .preferredColorScheme(themeName == .dark || themeName == .graphite ? .dark : nil)
             .onChange(of: scenePhase) {
                 guard scenePhase == .active else { return }
                 today = makeCalendarDay(date: .now, calendar: .current)

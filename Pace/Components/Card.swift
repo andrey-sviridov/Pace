@@ -10,5 +10,6 @@ struct Card<Content: View>: View {
         content
             .padding()
             .background(theme.card, in: RoundedRectangle(cornerRadius: theme.cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: theme.cornerRadius).strokeBorder(theme.cardBorder, lineWidth: 1))
     }
 }

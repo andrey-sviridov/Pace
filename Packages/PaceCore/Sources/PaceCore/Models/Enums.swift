@@ -20,7 +20,7 @@ public enum PeriodMode: String, Codable, Sendable {
     case calendarMonth, salaryMonth, halfMonth
 }
 
-/// Темы A / B / C из дизайна.
+/// Темы A / B / C / D из дизайна.
 public enum ThemeName: String, Codable, Sendable {
-    case light, dark, paper
+    case light, dark, paper, graphite
 }
