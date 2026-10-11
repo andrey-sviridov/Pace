@@ -116,7 +116,7 @@ private struct HomeHero: View {
                 .font(theme.heroFont)
                 .monospacedDigit()
                 .foregroundStyle(isOverspent ? theme.over : theme.text)
-                .shadow(color: theme.makeGlow(isOverspent ? theme.over : theme.accent).opacity(0.6), radius: 18)
+                .shadow(color: theme.makeGlow(isOverspent ? theme.over : theme.accent).opacity(0.5), radius: 16)
             Text(makeHeroCaption(numbers: numbers))
                 .font(.footnote)
                 .foregroundStyle(theme.secondaryText)
@@ -140,7 +140,7 @@ private struct HomeBackground: View {
         theme.background
             .overlay(alignment: .top) {
                 if theme.isGlowing {
-                    RadialGradient(colors: [theme.accent.opacity(0.16), .clear], center: .top, startRadius: 0, endRadius: 460)
+                    RadialGradient(colors: [theme.accent.opacity(0.08), .clear], center: .top, startRadius: 0, endRadius: 460)
                 }
             }
             .ignoresSafeArea()

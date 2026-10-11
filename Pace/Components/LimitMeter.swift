@@ -54,7 +54,7 @@ private struct LimitMeterTrack: View {
                 Capsule()
                     .fill(fill)
                     .frame(width: width * min(max(usedShare, 0), 1), height: 6)
-                    .shadow(color: glowColor, radius: 6)
+                    .shadow(color: glowColor, radius: 4)
                 // Метка темпа: если заливка левее неё, тратим медленнее, чем идут дни.
                 Rectangle()
                     .fill(theme.text.opacity(0.7))

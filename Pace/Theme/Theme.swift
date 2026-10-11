@@ -58,7 +58,7 @@ extension Theme {
 
     /// Цвет свечения вокруг заливки; в «Графите» свечения нет.
     func makeGlow(_ color: Color) -> Color {
-        isGlowing ? color.opacity(0.55) : .clear
+        isGlowing ? color.opacity(0.3) : .clear
     }
 }
 
@@ -72,8 +72,8 @@ extension Theme {
         text: Color(hex: 0xF2F6F8),
         secondaryText: Color(hex: 0x8B98A3),
         track: Color(hex: 0x232A31),
-        accent: Color(hex: 0x4FE0FF),
-        normal: Color(hex: 0x4FE0FF),
+        accent: Color(hex: 0x5CC6E6),
+        normal: Color(hex: 0x5CC6E6),
         warning: Color(hex: 0xF5B43C),
         over: Color(hex: 0xFF5A5A),
         income: Color(hex: 0x2FD9A0),
@@ -81,7 +81,7 @@ extension Theme {
         cornerRadius: 22,
         cardBorder: .white.opacity(0.1),
         style: .glow,
-        accentGradientEnd: Color(hex: 0x3B6CF6)
+        accentGradientEnd: Color(hex: 0x4A7BDB)
     )
 }
 
