@@ -19,54 +19,45 @@ struct Theme {
     /// Шрифт главной цифры «Можно потратить».
     let heroFont: Font
     let cornerRadius: CGFloat
-    /// Тонкая обводка карточки: на тёмном фоне карточка без неё сливается с фоном.
+    /// Тонкая обводка карточки, чтобы она не сливалась с фоном.
     let cardBorder: Color
-    /// «Свечение»: заливки «в норме» — градиентом от `accent` к `accentGradientEnd` и со свечением, карточки — стеклом.
-    var style: ThemeStyle = .flat
-    var accentGradientEnd: Color = .clear
+    /// Заливки «в норме» идут градиентом от `accent` к этому цвету.
+    let accentGradientEnd: Color
+    /// Насколько заметно свечение вокруг заливок.
+    let glowOpacity: Double
+    /// Блик сверху карточки, как у стекла; на светлой карточке он не нужен.
+    let sheenOpacity: Double
 
-    /// Обе темы всегда тёмные.
-    static func make(_ name: ThemeName) -> Theme {
+    /// Главная тема одна — «Свечение»; режим выбирает её светлый или тёмный вариант.
+    static func make(_ name: ThemeName, colorScheme: ColorScheme) -> Theme {
         switch name {
-        case .graphite:
-            return graphite
         case .glow:
-            return glow
+            return colorScheme == .dark ? glowDark : glowLight
         }
     }
 }
 
-/// Плоские заливки или со свечением.
-enum ThemeStyle {
-    case flat, glow
-}
-
 extension Theme {
-    var isGlowing: Bool { style == .glow }
-
-    /// Заливка «в норме»: в «Свечении» — градиент, в «Графите» — цвет акцента.
+    /// Заливка «в норме»: градиент акцента.
     var accentFill: AnyShapeStyle {
-        guard isGlowing else { return AnyShapeStyle(accent) }
-        return AnyShapeStyle(LinearGradient(colors: [accent, accentGradientEnd], startPoint: .leading, endPoint: .trailing))
+        AnyShapeStyle(LinearGradient(colors: [accent, accentGradientEnd], startPoint: .leading, endPoint: .trailing))
     }
 
-    /// Блик поверх карточки: в «Свечении» сверху светлее, как у стекла; в «Графите» его нет.
     var cardSheen: AnyShapeStyle {
-        guard isGlowing else { return AnyShapeStyle(Color.clear) }
-        return AnyShapeStyle(LinearGradient(colors: [.white.opacity(0.07), .white.opacity(0.01)], startPoint: .top, endPoint: .bottom))
+        AnyShapeStyle(LinearGradient(colors: [.white.opacity(sheenOpacity), .white.opacity(sheenOpacity / 7)], startPoint: .top, endPoint: .bottom))
     }
 
-    /// Цвет свечения вокруг заливки; в «Графите» свечения нет.
+    /// Цвет свечения вокруг заливки.
     func makeGlow(_ color: Color) -> Color {
-        isGlowing ? color.opacity(0.3) : .clear
+        color.opacity(glowOpacity)
     }
 }
 
 // MARK: - Свечение
 
 extension Theme {
-    /// По макету со свечением: стеклянные карточки, голубой градиент со свечением, иконки у лимитов.
-    static let glow = Theme(
+    /// Тёмная: стеклянные карточки, голубой градиент с мягким свечением.
+    static let glowDark = Theme(
         background: Color(hex: 0x0A0F14),
         card: Color(hex: 0x151B21),
         text: Color(hex: 0xF2F6F8),
@@ -80,33 +71,33 @@ extension Theme {
         heroFont: .system(size: 40, weight: .semibold),
         cornerRadius: 22,
         cardBorder: .white.opacity(0.1),
-        style: .glow,
-        accentGradientEnd: Color(hex: 0x4A7BDB)
+        accentGradientEnd: Color(hex: 0x4A7BDB),
+        glowOpacity: 0.3,
+        sheenOpacity: 0.07
     )
-}
 
-// MARK: - Графит
-
-extension Theme {
-    /// Графитовые карточки с обводкой, один плоский голубой акцент без градиентов и свечения.
-    static let graphite = Theme(
-        background: Color(hex: 0x111317),
-        card: Color(hex: 0x1C1F26),
-        text: Color(hex: 0xF4F5F7),
-        secondaryText: Color(hex: 0x8E8E93),
-        track: Color(hex: 0x2A2E37),
-        accent: Color(hex: 0x2EB8E6),
-        normal: Color(hex: 0x2EB8E6),
-        warning: Color(hex: 0xF0A43A),
-        over: Color(hex: 0xF0605A),
-        income: Color(hex: 0x2FC99A),
-        heroFont: .system(size: 34, weight: .bold),
-        cornerRadius: 20,
-        cardBorder: Color(hex: 0x2A2F3A)
+    /// Светлая: белые карточки на холодном светло-сером, тот же градиент чуть темнее — для контраста на белом.
+    static let glowLight = Theme(
+        background: Color(hex: 0xF1F4F7),
+        card: Color(hex: 0xFFFFFF),
+        text: Color(hex: 0x0F171E),
+        secondaryText: Color(hex: 0x6A7682),
+        track: Color(hex: 0xE4E9EE),
+        accent: Color(hex: 0x2DADD8),
+        normal: Color(hex: 0x2DADD8),
+        warning: Color(hex: 0xDB8C00),
+        over: Color(hex: 0xE5484D),
+        income: Color(hex: 0x14A876),
+        heroFont: .system(size: 40, weight: .semibold),
+        cornerRadius: 22,
+        cardBorder: .black.opacity(0.06),
+        accentGradientEnd: Color(hex: 0x3F6FDB),
+        glowOpacity: 0.25,
+        sheenOpacity: 0
     )
 }
 
 extension EnvironmentValues {
     /// Корень приложения кладёт сюда тему из настроек; значение по умолчанию нужно только превью.
-    @Entry var theme: Theme = Theme.graphite
+    @Entry var theme: Theme = Theme.glowDark
 }

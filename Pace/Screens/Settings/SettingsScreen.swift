@@ -36,9 +36,9 @@ private struct AppearanceSection: View {
 
     var body: some View {
         Section("Оформление") {
-            ThemeChooser(selection: settingsStore.settings.theme) { name in
+            AppearanceChooser(selection: settingsStore.settings.appearance) { appearance in
                 do {
-                    try settingsStore.update(\.theme, to: name)
+                    try settingsStore.update(\.appearance, to: appearance)
                 } catch {
                     errorStore.show(error)
                 }
@@ -79,18 +79,23 @@ private struct PeriodSection: View {
     }
 }
 
-/// Две темы с мини-превью: фон, карточка и акцент — сразу видно, как будет выглядеть.
-private struct ThemeChooser: View {
-    let selection: ThemeName
-    let onSelect: (ThemeName) -> Void
+/// Режимы темы с мини-превью: фон, карточка и акцент — сразу видно, как будет выглядеть.
+private struct AppearanceChooser: View {
+    let selection: AppearanceMode
+    let onSelect: (AppearanceMode) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(spacing: 12) {
-            ThemePreview(title: "Графит", theme: Theme.make(.graphite), isSelected: selection == .graphite) {
-                onSelect(.graphite)
+            ThemePreview(title: "Как в системе", theme: Theme.make(.glow, colorScheme: colorScheme), isSelected: selection == .system) {
+                onSelect(.system)
             }
-            ThemePreview(title: "Свечение", theme: Theme.make(.glow), isSelected: selection == .glow) {
-                onSelect(.glow)
+            ThemePreview(title: "Светлая", theme: Theme.make(.glow, colorScheme: .light), isSelected: selection == .light) {
+                onSelect(.light)
+            }
+            ThemePreview(title: "Тёмная", theme: Theme.make(.glow, colorScheme: .dark), isSelected: selection == .dark) {
+                onSelect(.dark)
             }
         }
         .padding(.vertical, 4)

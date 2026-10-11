@@ -165,7 +165,8 @@ private func makeSettingsBackup(_ settings: AppSettings) -> SettingsBackup {
         isApplePayEnabled: settings.isApplePayEnabled,
         isSmsEnabled: settings.isSmsEnabled, shouldShowRemainingAfterPayment: settings.shouldShowRemainingAfterPayment,
         monthlySavingsGoal: settings.monthlySavingsGoal, hasFinishedSetup: settings.hasFinishedSetup,
-        hasAdvance: settings.hasAdvance, shouldShowOperationTime: settings.shouldShowOperationTime
+        hasAdvance: settings.hasAdvance, shouldShowOperationTime: settings.shouldShowOperationTime,
+        appearance: settings.appearance
     )
 }
 
@@ -220,7 +221,8 @@ private func makeSettings(_ backup: SettingsBackup) -> AppSettings {
         isApplePayEnabled: backup.isApplePayEnabled,
         isSmsEnabled: backup.isSmsEnabled, shouldShowRemainingAfterPayment: backup.shouldShowRemainingAfterPayment,
         monthlySavingsGoal: backup.monthlySavingsGoal, hasFinishedSetup: backup.hasFinishedSetup,
-        hasAdvance: backup.hasAdvance ?? true, shouldShowOperationTime: backup.shouldShowOperationTime ?? true
+        hasAdvance: backup.hasAdvance ?? true, shouldShowOperationTime: backup.shouldShowOperationTime ?? true,
+        appearance: backup.appearance ?? .system
     )
 }
 

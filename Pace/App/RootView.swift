@@ -7,6 +7,7 @@ struct RootView: View {
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(JournalStore.self) private var journalStore
     @Environment(AccountStore.self) private var accountStore
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
 
     /// «Сегодня» для всех расчётов считается только здесь и обновляется, когда приложение снова на экране.
@@ -21,7 +22,8 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var errorStore = errorStore
-        let themeName = settingsStore.settings.theme
+        let appearance = settingsStore.settings.appearance
+        let theme = Theme.make(settingsStore.settings.theme, colorScheme: makeColorScheme(appearance: appearance, systemColorScheme: colorScheme))
 
         RootContent(
             hasFinishedSetup: settingsStore.settings.hasFinishedSetup,
@@ -30,9 +32,9 @@ struct RootView: View {
             selectedTab: $selectedTab,
             homePath: $homePath
         )
-            .environment(\.theme, Theme.make(themeName))
-            // Обе темы тёмные, поэтому и системные элементы (вкладки, окна) всегда в тёмном режиме.
-            .preferredColorScheme(.dark)
+            .environment(\.theme, theme)
+            // Системные элементы (вкладки, окна) — в том же режиме, что и тема.
+            .preferredColorScheme(makePreferredColorScheme(appearance: appearance))
             .onChange(of: scenePhase) {
                 guard scenePhase == .active else { return }
                 today = makeCalendarDay(date: .now, calendar: .current)
@@ -57,7 +59,7 @@ struct RootView: View {
             }
             .sheet(isPresented: makeIsShownBinding($importResult)) {
                 ImportResultSheet(result: importResult, onReview: openReview)
-                    .environment(\.theme, Theme.make(themeName))
+                    .environment(\.theme, theme)
             }
             .alert("Не получилось", isPresented: makeIsShownBinding($errorStore.currentMessage)) {
                 Button("Понятно") { errorStore.close() }
@@ -172,5 +174,29 @@ private struct ImportResultSheet: View {
         if let result {
             ImportResultScreen(result: result, onReview: onReview)
         }
+    }
+}
+
+/// Режим «как в системе» берёт светлую или тёмную из системы, остальные — свою.
+private func makeColorScheme(appearance: AppearanceMode, systemColorScheme: ColorScheme) -> ColorScheme {
+    switch appearance {
+    case .system:
+        return systemColorScheme
+    case .light:
+        return .light
+    case .dark:
+        return .dark
+    }
+}
+
+/// Для `.preferredColorScheme`: nil — оставить системный режим.
+private func makePreferredColorScheme(appearance: AppearanceMode) -> ColorScheme? {
+    switch appearance {
+    case .system:
+        return nil
+    case .light:
+        return .light
+    case .dark:
+        return .dark
     }
 }

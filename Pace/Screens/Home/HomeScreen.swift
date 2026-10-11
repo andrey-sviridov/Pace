@@ -106,7 +106,7 @@ private struct HomeHero: View {
 
     var body: some View {
         let isOverspent = numbers.budget.freeToSpend < 0
-        // Всё по центру; в «Свечении» у цифры ещё и свечение.
+        // Всё по центру, у цифры — мягкое свечение.
         VStack(alignment: .center, spacing: 6) {
             Text(makeHeroTitle(numbers: numbers))
                 .font(.subheadline)
@@ -131,16 +131,14 @@ private struct HomeHero: View {
     }
 }
 
-/// Фон главной; в «Свечении» сверху — мягкое пятно цвета акцента, как на макете.
+/// Фон главной: сверху — мягкое пятно цвета акцента, как на макете.
 private struct HomeBackground: View {
     let theme: Theme
 
     var body: some View {
         theme.background
             .overlay(alignment: .top) {
-                if theme.isGlowing {
-                    RadialGradient(colors: [theme.accent.opacity(0.08), .clear], center: .top, startRadius: 0, endRadius: 460)
-                }
+                RadialGradient(colors: [theme.accent.opacity(0.08), .clear], center: .top, startRadius: 0, endRadius: 460)
             }
             .ignoresSafeArea()
     }

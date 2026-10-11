@@ -24,7 +24,7 @@ import Testing
         context.insert(MerchantRule(merchantKey: "MAGNUM", categoryId: "groceries", title: "Магнум", isBuiltIn: false))
         context.insert(MerchantRule(merchantKey: "GLOVO", categoryId: "foodDelivery", isBuiltIn: true))
         context.insert(AmountRule(minAmount: 100, maxAmount: 200, afterEvent: .salary, windowDays: 3, categoryId: "ownTransfer", targetAccountKind: .ownOtherCard, sortOrder: 2))
-        context.insert(AppSettings(theme: .glow, periodMode: .halfMonth, employerName: "Работодатель", isApplePayEnabled: true, monthlySavingsGoal: 50_000, hasFinishedSetup: true))
+        context.insert(AppSettings(theme: .glow, periodMode: .halfMonth, employerName: "Работодатель", isApplePayEnabled: true, monthlySavingsGoal: 50_000, hasFinishedSetup: true, appearance: .dark))
 
         let purchase = JournalEntry(
             day: CalendarDay(dotted: "05.10.2026")!, time: now, type: .expense, amount: Decimal(string: "1500.25")!, feeAmount: 10,
@@ -76,7 +76,7 @@ import Testing
             "\(rule.minAmount)|\(rule.maxAmount)|\(String(describing: rule.afterEvent))|\(rule.windowDays)|\(String(describing: rule.categoryId))|\(String(describing: rule.targetAccountKind))|\(rule.sortOrder)"
         }
         let settings = try context.fetch(FetchDescriptor<AppSettings>()).map { item in
-            "\(item.theme)|\(item.periodMode)|\(item.employerName)|\(item.isApplePayEnabled)|\(item.isSmsEnabled)|\(item.shouldShowRemainingAfterPayment)|\(item.monthlySavingsGoal)|\(item.hasFinishedSetup)"
+            "\(item.theme)|\(item.periodMode)|\(item.employerName)|\(item.isApplePayEnabled)|\(item.isSmsEnabled)|\(item.shouldShowRemainingAfterPayment)|\(item.monthlySavingsGoal)|\(item.hasFinishedSetup)|\(item.appearance)"
         }
         return (entryLines + accounts + categories + merchantRules + amountRules + settings).sorted()
     }

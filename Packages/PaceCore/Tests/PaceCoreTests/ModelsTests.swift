@@ -45,7 +45,8 @@ import Testing
 
     @Test func settingsHaveDefaults() throws {
         let settings = AppSettings()
-        #expect(settings.theme == .graphite)
+        #expect(settings.theme == .glow)
+        #expect(settings.appearance == .system)
         #expect(settings.periodMode == .salaryMonth)
         #expect(settings.employerName == "АЦЭПАК")
         #expect(!settings.isApplePayEnabled && !settings.isSmsEnabled)

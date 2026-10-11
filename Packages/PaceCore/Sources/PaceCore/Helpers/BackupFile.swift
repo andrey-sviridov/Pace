@@ -64,6 +64,7 @@ public struct SettingsBackup: Codable {
     // Необязательные: в копиях, сделанных до появления этих настроек, их нет.
     public var hasAdvance: Bool?
     public var shouldShowOperationTime: Bool?
+    public var appearance: AppearanceMode?
 }
 
 public struct EntryBackup: Codable {
