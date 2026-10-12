@@ -6,6 +6,8 @@ import PaceCore
 /// Куда ведут переходы с аналитики.
 enum AnalyticsDestination: Hashable {
     case categoryMerchants(categoryId: String, period: Period)
+    case merchantOperations(title: String, categoryId: String, period: Period)
+    case entry(JournalEntry)
 }
 
 /// Аналитика (спека §8): за выбранный период — темп трат против плана, траты по категориям, копилка по периодам.
@@ -74,6 +76,10 @@ struct AnalyticsScreen: View {
                 switch destination {
                 case .categoryMerchants(let categoryId, let period):
                     CategoryMerchantsScreen(categoryId: categoryId, period: period)
+                case .merchantOperations(let title, let categoryId, let period):
+                    MerchantOperationsScreen(title: title, categoryId: categoryId, period: period)
+                case .entry(let entry):
+                    EntryDetailScreen(entry: entry)
                 }
             }
         }
@@ -409,16 +415,6 @@ private struct CategoryBarRow: View {
         .disabled(!isOpenable)
         .accessibilityLabel("\(bar.name), \(formatTenge(bar.total))")
         .accessibilityHint(isOpenable ? "Показать продавцов" : "")
-    }
-}
-
-/// Подсветка строки, пока палец на ней, — как у строк списка в iOS.
-private struct PressedRowStyle: ButtonStyle {
-    let highlight: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? highlight : .clear, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 

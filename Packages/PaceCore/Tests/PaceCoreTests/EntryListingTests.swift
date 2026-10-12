@@ -22,6 +22,18 @@ import Testing
         #expect(groups[1].entries.count == 1)
     }
 
+    @Test func limitedGroupsKeepNewestEntries() {
+        let oldest = makeEntry("08.10.2026")
+        let older = makeEntry("10.10.2026")
+        let newerFirst = makeEntry("12.10.2026", createdAt: 1)
+        let newerSecond = makeEntry("12.10.2026", createdAt: 2)
+
+        let groups = makeDayGroups([oldest, newerFirst, older, newerSecond], maxEntryCount: 3)
+
+        #expect(groups.map { group in group.day } == [makeDay("12.10.2026"), makeDay("10.10.2026")])
+        #expect(groups.flatMap { group in group.entries }.count == 3)
+    }
+
     @Test func emptyEntriesGiveNoGroups() {
         #expect(makeDayGroups([]).isEmpty)
     }

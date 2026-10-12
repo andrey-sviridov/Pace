@@ -40,7 +40,7 @@ struct LimitsScreen: View {
                     } label: {
                         LimitRow(title: "Цель: отложить", subtitle: "в месяц", value: formatTenge(monthlySavingsGoal), theme: theme)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressedRowStyle(highlight: theme.track))
                 }
                 LimitSection(title: "Обязательные · списываются сразу", theme: theme) {
                     ForEach(obligatoryRows, id: \.category.id) { row in
@@ -54,7 +54,7 @@ struct LimitsScreen: View {
                                 theme: theme
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressedRowStyle(highlight: theme.track))
                     }
                 }
                 LimitSection(title: "Гибкие · следим", theme: theme) {
@@ -68,7 +68,7 @@ struct LimitsScreen: View {
                                 theme: theme
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressedRowStyle(highlight: theme.track))
                     }
                 }
             }
@@ -203,7 +203,7 @@ private struct LimitSection<Content: View>: View {
                 .foregroundStyle(theme.secondaryText)
                 .padding(.horizontal, 4)
             Card {
-                VStack(spacing: 14) {
+                VStack(spacing: 4) {
                     content
                 }
             }
@@ -235,6 +235,8 @@ private struct LimitRow: View {
             Text("›")
                 .foregroundStyle(theme.secondaryText)
         }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 8)
         .contentShape(Rectangle())
     }
 }

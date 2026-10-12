@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import PaceCore
 
-/// Продавцы одной категории за период — открывается тапом по полосе «Куда уходят деньги?».
+/// Продавцы одной категории за период — открывается тапом по полосе «Куда уходят деньги?», тап по продавцу — его операции.
 /// Сумма продавцов равна полосе: ядро считает те же части трат.
 struct CategoryMerchantsScreen: View {
     let categoryId: String
@@ -10,8 +10,19 @@ struct CategoryMerchantsScreen: View {
 
     @Environment(\.theme) private var theme
 
+    /// Только записи категории: все записи база отдаёт ~50 мс, и переход на экран заметно дёргался.
     @Query private var entries: [JournalEntry]
     @Query(sort: \SpendingCategory.sortOrder) private var categories: [SpendingCategory]
+
+    init(categoryId: String, period: Period) {
+        self.categoryId = categoryId
+        self.period = period
+        // «Комиссии банка» снимаются с записей любой категории — здесь фильтровать нечем, нужны все.
+        guard categoryId != "bankFees" else { return }
+        // Траты без категории ядро собирает под id "uncategorized", в базе у них категории нет.
+        let storedCategoryId: String? = categoryId == "uncategorized" ? nil : categoryId
+        _entries = Query(filter: #Predicate<JournalEntry> { entry in entry.categoryId == storedCategoryId })
+    }
 
     var body: some View {
         let merchants = calculateMerchantSpending(categoryId: categoryId, period: period, entries: entries, categories: categories)
@@ -34,9 +45,12 @@ struct CategoryMerchantsScreen: View {
                             .foregroundStyle(theme.secondaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        VStack(spacing: 12) {
+                        VStack(spacing: 4) {
                             ForEach(merchants, id: \.title) { merchant in
-                                MerchantRow(merchant: merchant, theme: theme)
+                                NavigationLink(value: AnalyticsDestination.merchantOperations(title: merchant.title, categoryId: categoryId, period: period)) {
+                                    MerchantRow(merchant: merchant, theme: theme)
+                                }
+                                .buttonStyle(PressedRowStyle(highlight: theme.track))
                             }
                         }
                     }
@@ -65,7 +79,14 @@ private struct MerchantRow: View {
             }
             Spacer()
             MoneyText(amount: merchant.total)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.secondaryText)
         }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityHint("Показать операции")
     }
 }

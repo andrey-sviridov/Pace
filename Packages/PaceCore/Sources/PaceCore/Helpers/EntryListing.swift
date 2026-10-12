@@ -17,8 +17,9 @@ public struct DayGroup: Identifiable {
 }
 
 /// Группы по дням, новые дни сверху. Порядок внутри дня — как у `isShownEarlier`.
-public func makeDayGroups(_ entries: [JournalEntry]) -> [DayGroup] {
-    let sortedEntries = entries.sorted { first, second in isShownEarlier(first, than: second) }
+/// `maxEntryCount` — сколько первых записей показать: журнал отдаёт список порциями, а не тысячи строк сразу.
+public func makeDayGroups(_ entries: [JournalEntry], maxEntryCount: Int = .max) -> [DayGroup] {
+    let sortedEntries = entries.sorted { first, second in isShownEarlier(first, than: second) }.prefix(maxEntryCount)
     var groups: [DayGroup] = []
     for entry in sortedEntries {
         if let lastGroup = groups.last, lastGroup.day == entry.day {

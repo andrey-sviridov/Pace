@@ -16,11 +16,13 @@ struct JournalScreen: View {
     @State private var query = ""
     @State private var filter = JournalFilter()
     @State private var isCalendarShown = false
+    /// Сколько записей уже показано списком; календарь считает по всем найденным.
+    @State private var shownEntryCount = journalPageSize
 
     var body: some View {
         let visibleEntries = entries.filter { entry in entry.mergedInto == nil }
         let foundEntries = findEntries(visibleEntries, query: query, filter: filter)
-        let groups = makeDayGroups(foundEntries)
+        let groups = makeDayGroups(foundEntries, maxEntryCount: shownEntryCount)
         let categoryNamesById = makeCategoryNamesById(categories)
 
         NavigationStack {
@@ -36,11 +38,19 @@ struct JournalScreen: View {
                     // Поиск и фильтр действуют и на календарь: можно смотреть по дням одну категорию.
                     JournalCalendar(today: today, entries: foundEntries, categories: categories)
                 } else {
-                    JournalList(groups: groups, categoryNamesById: categoryNamesById)
+                    JournalList(
+                        groups: groups,
+                        categoryNamesById: categoryNamesById,
+                        hasMore: foundEntries.count > shownEntryCount,
+                        onLoadMore: { shownEntryCount += journalPageSize }
+                    )
                 }
             }
             .background(theme.background)
             .searchable(text: $query, prompt: "Найти по названию")
+            // Новый поиск или фильтр — снова с начала, а не с подгруженных для прошлого порций.
+            .onChange(of: query) { shownEntryCount = journalPageSize }
+            .onChange(of: filter) { shownEntryCount = journalPageSize }
             .navigationTitle("Журнал")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -54,10 +64,15 @@ struct JournalScreen: View {
     }
 }
 
-/// Записи по дням, новые сверху.
+/// Сколько записей список журнала показывает за раз.
+private let journalPageSize = 50
+
+/// Записи по дням, новые сверху. Долистали до конца — подгружается следующая порция.
 private struct JournalList: View {
     let groups: [DayGroup]
     let categoryNamesById: [String: String]
+    let hasMore: Bool
+    let onLoadMore: () -> Void
 
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(\.theme) private var theme
@@ -78,6 +93,12 @@ private struct JournalList: View {
                                 .listRowBackground(theme.card)
                             }
                         }
+                    }
+                    if hasMore {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .listRowBackground(Color.clear)
+                            .onAppear(perform: onLoadMore)
                     }
                 }
         .scrollContentBackground(.hidden)

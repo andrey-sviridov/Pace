@@ -23,6 +23,13 @@ public struct MerchantSpending: Equatable, Sendable {
     public let operationCount: Int
 }
 
+/// Операция в категории: запись и её вклад в полосу категории
+/// (в «Комиссиях банка» — комиссия, а не сумма перевода; возврат — минусом).
+public struct CategoryOperation {
+    public let entry: JournalEntry
+    public let amount: Decimal
+}
+
 // MARK: - Листание периодов
 
 /// Период перед `period` в том же режиме.
@@ -154,15 +161,11 @@ public func makeTopCategoryRows(_ spending: [CategorySpending], maxRowCount: Int
 /// Продавцы категории за период, от больших сумм к меньшим. Считаются те же части трат, что и в строке категории,
 /// поэтому сумма продавцов равна полосе (комиссии банка — по операциям, с которых их сняли; возвраты — минусом).
 public func calculateMerchantSpending(categoryId: String, period: Period, entries: [JournalEntry], categories: [SpendingCategory]) -> [MerchantSpending] {
-    let kindsById = makeCategoryKindsById(categories)
     var totalsByTitle: [String: Decimal] = [:]
     var countsByTitle: [String: Int] = [:]
-    for entry in findPeriodEntries(entries, period: period) {
-        let categoryParts = makeSpendingParts(of: entry, kindsById: kindsById).filter { part in part.categoryId == categoryId && part.amount != 0 }
-        for part in categoryParts {
-            totalsByTitle[entry.title, default: 0] += part.amount
-            countsByTitle[entry.title, default: 0] += 1
-        }
+    for operation in findCategoryOperations(categoryId: categoryId, period: period, entries: entries, categories: categories) {
+        totalsByTitle[operation.entry.title, default: 0] += operation.amount
+        countsByTitle[operation.entry.title, default: 0] += 1
     }
 
     let merchants = totalsByTitle.map { title, total in
@@ -171,6 +174,26 @@ public func calculateMerchantSpending(categoryId: String, period: Period, entrie
     // При равных суммах — по алфавиту, иначе строки прыгали бы между открытиями.
     return merchants.sorted { first, second in
         first.total == second.total ? first.title < second.title : first.total > second.total
+    }
+}
+
+/// Операции одного продавца категории за период, новые сверху — из них сложилась его строка.
+public func findMerchantOperations(title: String, categoryId: String, period: Period, entries: [JournalEntry], categories: [SpendingCategory]) -> [CategoryOperation] {
+    let operations = findCategoryOperations(categoryId: categoryId, period: period, entries: entries, categories: categories)
+        .filter { operation in operation.entry.title == title }
+    return operations.sorted { first, second in
+        guard first.entry.day == second.entry.day else { return first.entry.day > second.entry.day }
+        return (first.entry.time ?? .distantPast) > (second.entry.time ?? .distantPast)
+    }
+}
+
+/// Вклады записей периода в категорию — те же части трат, что у полосы. Нулевые не считаются операциями.
+private func findCategoryOperations(categoryId: String, period: Period, entries: [JournalEntry], categories: [SpendingCategory]) -> [CategoryOperation] {
+    let kindsById = makeCategoryKindsById(categories)
+    return findPeriodEntries(entries, period: period).flatMap { entry in
+        makeSpendingParts(of: entry, kindsById: kindsById)
+            .filter { part in part.categoryId == categoryId && part.amount != 0 }
+            .map { part in CategoryOperation(entry: entry, amount: part.amount) }
     }
 }
 

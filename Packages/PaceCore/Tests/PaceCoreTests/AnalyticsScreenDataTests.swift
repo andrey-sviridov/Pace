@@ -172,6 +172,35 @@ import Testing
         #expect(merchants == [MerchantSpending(title: "Перевод на Kaspi", total: 250, operationCount: 1)])
     }
 
+    @Test func merchantOperationsAddUpToMerchantRowNewestFirst() {
+        let categories = makeBuiltInCategories()
+        let entries = [
+            makeTitledEntry("01.10.2026", .expense, 3_000, title: "Перевод на другую карту", categoryId: "transfersToPeople"),
+            makeTitledEntry("09.10.2026", .expense, 5_000, title: "Перевод на другую карту", categoryId: "transfersToPeople"),
+            makeTitledEntry("05.10.2026", .expense, 2_000, title: "Перевод на другую карту", categoryId: "transfersToPeople"),
+            makeTitledEntry("06.10.2026", .expense, 9_000, title: "Магазин", categoryId: "transfersToPeople"),
+            makeTitledEntry("30.09.2026", .expense, 7_000, title: "Перевод на другую карту", categoryId: "transfersToPeople"),
+        ]
+
+        let operations = findMerchantOperations(title: "Перевод на другую карту", categoryId: "transfersToPeople", period: makeOctober2026(), entries: entries, categories: categories)
+        let merchant = calculateMerchantSpending(categoryId: "transfersToPeople", period: makeOctober2026(), entries: entries, categories: categories)
+            .first { item in item.title == "Перевод на другую карту" }
+
+        #expect(operations.map { operation in operation.entry.day } == [makeDay("09.10.2026"), makeDay("05.10.2026"), makeDay("01.10.2026")])
+        #expect(operations.reduce(Decimal(0)) { total, operation in total + operation.amount } == merchant?.total)
+    }
+
+    @Test func bankFeeOperationsShowFeeNotTransferAmount() {
+        let categories = makeBuiltInCategories()
+        let entries = [
+            makeTitledEntry("01.10.2026", .transfer, 30_000, title: "Перевод на Kaspi", categoryId: "ownTransfer", feeTenge: 250),
+        ]
+
+        let operations = findMerchantOperations(title: "Перевод на Kaspi", categoryId: "bankFees", period: makeOctober2026(), entries: entries, categories: categories)
+
+        #expect(operations.map { operation in operation.amount } == [250])
+    }
+
     // MARK: - Pace по месяцам
 
     @Test func leftoverPeriodsEndWithSelectedPeriod() {
